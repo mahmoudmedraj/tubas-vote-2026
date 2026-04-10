@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+data/votes.json
+data/voted.json
+data/devices.json
+data/status.json
+data/security.json
+*.session.dill
