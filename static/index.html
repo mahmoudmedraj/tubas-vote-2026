@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>نظام التصويت الإلكتروني – طوباس 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --G:#1a6b3c;--Gd:#124d2b;--Gl:#22873e;
+  --A:#e8a020;--Ad:#c88010;
+  --R:#c0392b;--Rl:#e74c3c;
+  --bg:#f0f4f0;--card:#fff;--bd:#d4e4d4;
+  --tx:#1a2e1a;--mu:#6b8c6b;
+  --sh:0 4px 24px rgba(26,107,60,.12);
+  --shl:0 8px 40px rgba(26,107,60,.18);
+  --rad:16px;--rads:10px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;direction:rtl}
+
+/* HEADER */
+.hdr{background:linear-gradient(135deg,var(--Gd),var(--G) 50%,var(--Gl));color:#fff;position:relative;overflow:hidden}
+.hdr::before{content:'';position:absolute;top:-50%;left:-20%;width:200px;height:200px;background:rgba(255,255,255,.04);border-radius:50%}
+.hdr-in{max-width:860px;margin:0 auto;padding:28px 20px 22px;text-align:center;position:relative;z-index:1}
+.hdr-emb{width:68px;height:68px;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.3);border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:30px}
+.hdr h1{font-size:clamp(18px,4vw,26px);font-weight:900;margin-bottom:5px}
+.hdr p{font-size:13px;opacity:.85}
+.hdr-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(232,160,32,.22);border:1px solid rgba(232,160,32,.5);color:#ffd580;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-top:8px}
+
+/* STEPS */
+.steps{background:#fff;border-bottom:2px solid var(--bd);padding:10px 12px;display:flex;justify-content:center;gap:0;overflow-x:auto}
+.step{display:flex;align-items:center;gap:7px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--mu);white-space:nowrap}
+.step.active{color:var(--G)}.step.done{color:var(--Ad)}
+.snum{width:22px;height:22px;border-radius:50%;background:#e0e0e0;color:#999;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;transition:all .3s}
+.step.active .snum{background:var(--G);color:#fff;box-shadow:0 0 0 3px rgba(26,107,60,.2)}
+.step.done .snum{background:var(--A);color:#fff}
+.sarr{color:#ccc;font-size:13px;margin:0 2px}
+
+/* WRAP */
+.wrap{max-width:860px;margin:0 auto;padding:28px 14px 60px}
+.screen{display:none;animation:fdIn .35s ease}
+.screen.active{display:block}
+@keyframes fdIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
+/* CARD */
+.card{background:var(--card);border-radius:var(--rad);box-shadow:var(--sh);overflow:hidden;margin-bottom:20px}
+.ch{background:linear-gradient(135deg,var(--G),var(--Gl));color:#fff;padding:18px 24px;display:flex;align-items:center;gap:12px}
+.ch-ico{width:42px;height:42px;background:rgba(255,255,255,.2);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
+.ch h2{font-size:17px;font-weight:700;margin-bottom:2px}
+.ch p{font-size:12px;opacity:.85}
+.cb{padding:24px}
+
+/* FORM */
+.fg{margin-bottom:18px}
+.fl{display:block;font-size:13px;font-weight:600;color:var(--tx);margin-bottom:7px}
+.fl span{color:var(--R)}
+.fc{width:100%;padding:13px 16px;border:2px solid var(--bd);border-radius:var(--rads);font-family:'Tajawal',sans-serif;font-size:17px;color:var(--tx);background:#fafcfa;transition:all .25s;outline:none;text-align:center;letter-spacing:2px}
+.fc:focus{border-color:var(--G);background:#fff;box-shadow:0 0 0 4px rgba(26,107,60,.1)}
+.fh{margin-top:7px;font-size:12px;color:var(--mu);display:flex;align-items:center;gap:4px}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:12px 26px;border:none;border-radius:var(--rads);font-family:'Tajawal',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .22s;white-space:nowrap}
+.btn-p{background:linear-gradient(135deg,var(--G),var(--Gl));color:#fff;box-shadow:0 4px 14px rgba(26,107,60,.3)}
+.btn-p:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(26,107,60,.4)}
+.btn-a{background:linear-gradient(135deg,var(--A),var(--Ad));color:#fff;box-shadow:0 4px 14px rgba(232,160,32,.35)}
+.btn-a:hover{transform:translateY(-2px)}
+.btn-d{background:linear-gradient(135deg,var(--Rl),var(--R));color:#fff}
+.btn-o{background:transparent;color:var(--G);border:2px solid var(--G)}
+.btn-o:hover{background:var(--G);color:#fff}
+.btn-lg{padding:15px 34px;font-size:16px}
+.btn-bl{width:100%}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+
+/* ALERTS */
+.al{padding:12px 16px;border-radius:var(--rads);font-size:13px;font-weight:500;display:flex;align-items:flex-start;gap:9px;margin-bottom:16px}
+.al-ico{font-size:17px;flex-shrink:0;margin-top:-1px}
+.al-d{background:#fef2f2;border:1px solid #fecaca;color:var(--R)}
+.al-w{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
+.al-s{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}
+.al-i{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+
+/* VOTER BOX */
+.vbox{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #86efac;border-radius:var(--rad);padding:22px;text-align:center;margin-bottom:22px}
+.vbox-ico{width:60px;height:60px;background:linear-gradient(135deg,var(--G),var(--Gl));border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff}
+.vbox-name{font-size:21px;font-weight:900;color:var(--Gd);margin-bottom:5px}
+.vbox-center{font-size:13px;color:var(--mu)}
+
+/* LISTS */
+.lists-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-bottom:20px}
+.lcard{border:2.5px solid var(--bd);border-radius:var(--rad);overflow:hidden;cursor:pointer;transition:all .28s;background:#fff;position:relative}
+.lcard:hover{border-color:var(--G);box-shadow:var(--shl);transform:translateY(-3px)}
+.lcard.sel{border-color:var(--G);box-shadow:0 0 0 3px rgba(26,107,60,.2),var(--shl)}
+.lch{background:linear-gradient(135deg,var(--G),var(--Gl));color:#fff;padding:14px;text-align:center;position:relative}
+.lnum{position:absolute;top:7px;left:10px;background:rgba(255,255,255,.2);border-radius:7px;padding:2px 7px;font-size:11px;font-weight:700}
+.lname{font-size:17px;font-weight:900;margin-bottom:3px}
+.lcnt{font-size:12px;opacity:.85}
+.lcb{padding:10px 12px}
+.lprev{font-size:12px;color:var(--mu);line-height:1.8;list-style:none}
+.lprev li{padding:2px 0;border-bottom:1px dashed #eee}
+.lprev li:last-child{border-bottom:none}
+.lchk{position:absolute;top:7px;right:7px;width:22px;height:22px;background:var(--A);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:11px;color:#fff}
+.lcard.sel .lchk{display:flex}
+
+/* CANDIDATES */
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:9px;margin-bottom:18px}
+.ccard{border:2px solid var(--bd);border-radius:var(--rads);padding:12px 10px;cursor:pointer;transition:all .22s;display:flex;align-items:center;gap:9px;background:#fff}
+.ccard:hover{border-color:var(--Gl);background:#f8fdf8}
+.ccard.sel{border-color:var(--G);background:linear-gradient(135deg,#f0fdf4,#e8faf0);box-shadow:0 2px 10px rgba(26,107,60,.15)}
+.cchk{width:21px;height:21px;border:2.5px solid #ccc;border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s;font-size:11px}
+.ccard.sel .cchk{background:var(--G);border-color:var(--G);color:#fff}
+.cinfo{flex:1}
+.cname{font-size:13px;font-weight:600;color:var(--tx);line-height:1.4}
+.cnum{font-size:11px;color:var(--mu);margin-top:2px}
+
+/* COUNTER */
+.vctr{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #86efac;border-radius:var(--rads);padding:13px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap}
+.vctr-lbl{font-size:13px;font-weight:600;color:var(--Gd)}
+.vctr-max{font-size:12px;color:var(--mu)}
+.vctr-n{font-size:26px;font-weight:900;color:var(--G)}
+.bubbles{display:flex;gap:5px}
+.bub{width:26px;height:26px;border-radius:50%;border:2px solid var(--bd);background:#fff;transition:all .2s}
+.bub.on{background:var(--G);border-color:var(--G)}
+
+/* MODAL */
+.mover{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center;padding:14px}
+.mover.on{display:flex;animation:fdIn .28s ease}
+.mbox{background:#fff;border-radius:var(--rad);max-width:540px;width:100%;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+.mh{background:linear-gradient(135deg,var(--Gd),var(--G));color:#fff;padding:18px 22px;text-align:center}
+.mh h3{font-size:17px;font-weight:900;margin-bottom:3px}
+.mh p{font-size:12px;opacity:.8}
+.mb{padding:22px}
+.mwarn{background:#fffbeb;border:2px solid #fbbf24;border-radius:var(--rads);padding:11px 14px;font-size:13px;color:#92400e;margin-bottom:18px;display:flex;gap:7px;align-items:flex-start}
+.ssl{list-style:none;background:#f8fdf8;border:1px solid var(--bd);border-radius:var(--rads);overflow:hidden;margin-bottom:18px}
+.ssl li{padding:9px 14px;border-bottom:1px solid var(--bd);font-size:13px;display:flex;align-items:center;gap:7px}
+.ssl li:last-child{border-bottom:none}
+.snum{width:22px;height:22px;background:var(--G);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.mact{display:flex;gap:10px}
+.mact .btn{flex:1}
+
+/* SUCCESS */
+.succ{text-align:center;padding:36px 22px}
+.succ-ico{width:90px;height:90px;background:linear-gradient(135deg,var(--G),var(--Gl));border-radius:50%;margin:0 auto 22px;display:flex;align-items:center;justify-content:center;font-size:40px;color:#fff;box-shadow:0 8px 30px rgba(26,107,60,.35);animation:popIn .5s cubic-bezier(.175,.885,.32,1.275)}
+@keyframes popIn{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+.succ h2{font-size:26px;font-weight:900;color:var(--Gd);margin-bottom:7px}
+.succ p{font-size:14px;color:var(--mu);margin-bottom:26px}
+.succ-det{background:#f8fdf8;border:2px solid var(--bd);border-radius:var(--rad);padding:18px;text-align:right;margin-bottom:24px}
+
+/* LOADER */
+.ldov{display:none;position:fixed;inset:0;background:rgba(255,255,255,.88);z-index:2000;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+.ldov.on{display:flex}
+.spin{width:44px;height:44px;border:4px solid #e0e0e0;border-top-color:var(--G);border-radius:50%;animation:spin .75s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ADMIN */
+.adm-nav{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:22px}
+.anb{padding:7px 16px;border-radius:8px;border:2px solid var(--bd);background:#fff;font-family:'Tajawal',sans-serif;font-size:13px;font-weight:600;cursor:pointer;color:var(--mu);transition:all .2s}
+.anb.on,.anb:hover{background:var(--G);border-color:var(--G);color:#fff}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;margin-bottom:26px}
+.sc{background:#fff;border-radius:var(--rad);padding:18px 14px;text-align:center;box-shadow:var(--sh);border-top:4px solid var(--G)}
+.sc.ac{border-top-color:var(--A)}.sc.rc{border-top-color:var(--R)}
+.sc-v{font-size:30px;font-weight:900;color:var(--Gd)}
+.sc.ac .sc-v{color:var(--Ad)}.sc.rc .sc-v{color:var(--R)}
+.sc-l{font-size:12px;color:var(--mu);margin-top:3px;font-weight:600}
+.pb-w{margin-bottom:14px}
+.pb-i{display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:5px}
+.pb{height:9px;background:#e5e7eb;border-radius:99px;overflow:hidden}
+.pbf{height:100%;background:linear-gradient(90deg,var(--G),var(--Gl));border-radius:99px;transition:width .6s ease}
+.rtw{overflow-x:auto}
+.rt{width:100%;border-collapse:collapse;font-size:13px}
+.rt thead th{background:var(--Gd);color:#fff;padding:11px 13px;text-align:right;font-weight:700}
+.rt tbody tr:nth-child(even){background:#f8fdf8}
+.rt tbody td{padding:9px 13px;border-bottom:1px solid var(--bd)}
+.rt tbody tr:hover{background:#f0fdf4}
+.rbadge{width:24px;height:24px;background:var(--G);color:#fff;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.rbadge.g{background:#f59e0b}.rbadge.s{background:#9ca3af}.rbadge.b{background:#d97706}
+.tag{display:inline-flex;align-items:center;gap:3px;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.tag-o{background:#dcfce7;color:#166534}.tag-c{background:#fee2e2;color:#991b1b}
+.fab{position:fixed;bottom:22px;left:20px;background:var(--Gd);color:#fff;border:none;border-radius:50px;padding:9px 16px;font-family:'Tajawal',sans-serif;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;box-shadow:var(--shl);transition:all .22s;z-index:500}
+.fab:hover{background:var(--G);transform:translateY(-2px)}
+.sec-ttl{font-size:15px;font-weight:800;color:var(--Gd);margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.sec-ttl::after{content:'';flex:1;height:2px;background:linear-gradient(90deg,var(--G),transparent)}
+footer{background:var(--Gd);color:rgba(255,255,255,.55);text-align:center;padding:14px;font-size:12px;margin-top:40px}
+@media(max-width:600px){.cb{padding:16px}.lists-grid{grid-template-columns:1fr}.cgrid{grid-template-columns:1fr}.sgrid{grid-template-columns:repeat(2,1fr)}.mact{flex-direction:column}}
+</style>
+</head>
+<body>
+
+<!-- Loader -->
+<div class="ldov" id="ld"><div class="spin"></div><span style="font-size:13px;color:var(--G);font-weight:600">جاري التحقق...</span></div>
+
+<!-- Confirm Modal -->
+<div class="mover" id="mConfirm">
+  <div class="mbox">
+    <div class="mh"><h3>⚠️ تأكيد التصويت النهائي</h3><p>راجع اختيارك قبل الإرسال</p></div>
+    <div class="mb">
+      <div class="mwarn"><span>🚫</span><span><strong>تنبيه:</strong> لا يمكن التراجع أو التعديل بعد الإرسال.</span></div>
+      <div style="font-size:13px;color:var(--mu);margin-bottom:8px">القائمة: <strong id="mListName" style="color:var(--G)"></strong></div>
+      <ul class="ssl" id="mCandList"></ul>
+      <div class="mact">
+        <button class="btn btn-o" onclick="closeModal('mConfirm')">← تعديل</button>
+        <button class="btn btn-a btn-lg" onclick="submitVote()">✔ تأكيد وإرسال</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Modal -->
+<div class="mover" id="mAdmin">
+  <div class="mbox" style="max-width:380px">
+    <div class="mh"><h3>🔐 لوحة الإدارة</h3><p>أدخل كلمة المرور</p></div>
+    <div class="mb">
+      <div id="admErr" class="al al-d" style="display:none"><span class="al-ico">⛔</span><span>كلمة المرور غير صحيحة</span></div>
+      <div class="fg">
+        <label class="fl">كلمة المرور</label>
+        <input type="password" id="admPass" class="fc" placeholder="••••••••" onkeydown="if(event.key==='Enter')chkAdm()"/>
+      </div>
+      <div style="display:flex;gap:9px">
+        <button class="btn btn-o" style="flex:1" onclick="closeModal('mAdmin')">إلغاء</button>
+        <button class="btn btn-p" style="flex:1" onclick="chkAdm()">دخول</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div class="hdr-in">
+    <div class="hdr-emb">🗳️</div>
+    <h1>نظام التصويت الإلكتروني</h1>
+    <p>انتخابات مجلس البلدي – مدينة طوباس 2026</p>
+    <div class="hdr-badge">🔒 آمن · مشفر · سري</div>
+  </div>
+</header>
+
+<!-- STEPS -->
+<nav class="steps" id="stepsNav">
+  <div class="step active" id="st1"><span class="snum">1</span>الدخول</div>
+  <div class="sarr">‹</div>
+  <div class="step" id="st2"><span class="snum">2</span>التحقق</div>
+  <div class="sarr">‹</div>
+  <div class="step" id="st3"><span class="snum">3</span>القائمة</div>
+  <div class="sarr">‹</div>
+  <div class="step" id="st4"><span class="snum">4</span>المرشحون</div>
+  <div class="sarr">‹</div>
+  <div class="step" id="st5"><span class="snum">5</span>التأكيد</div>
+</nav>
+
+<div class="wrap">
+
+<!-- ═══ SCREEN 1: LOGIN ═══ -->
+<div class="screen active" id="sc-login">
+  <div class="card">
+    <div class="ch"><div class="ch-ico">🔑</div><div><h2>تسجيل الدخول للتصويت</h2><p>أدخل رقم تسجيلك الانتخابي</p></div></div>
+    <div class="cb">
+      <div class="al al-i"><span class="al-ico">ℹ️</span><span>أدخل <strong>رقم التسجيل الانتخابي</strong> وليس رقم الهوية الوطنية.</span></div>
+      <div id="loginErr" class="al al-d" style="display:none"><span class="al-ico">⛔</span><span id="loginErrMsg"></span></div>
+      <div class="fg">
+        <label class="fl">رقم التسجيل الانتخابي <span>*</span></label>
+        <input type="text" id="regIn" class="fc" placeholder="أدخل الرقم..." maxlength="20" inputmode="numeric" onkeydown="if(event.key==='Enter')doLogin()"/>
+        <div class="fh">📋 مثال: 2174412 أو 91907445</div>
+      </div>
+      <button class="btn btn-p btn-lg btn-bl" onclick="doLogin()">دخول والتحقق ←</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCREEN 2: VERIFY ═══ -->
+<div class="screen" id="sc-verify">
+  <div class="card">
+    <div class="ch"><div class="ch-ico">👤</div><div><h2>التحقق من هوية الناخب</h2><p>تأكد أن الاسم المعروض هو اسمك</p></div></div>
+    <div class="cb">
+      <div class="vbox">
+        <div class="vbox-ico">👤</div>
+        <div class="vbox-name" id="vName"></div>
+        <div class="vbox-center" id="vCenter"></div>
+      </div>
+      <div class="al al-w"><span class="al-ico">⚠️</span><span>إذا لم يكن هذا اسمك، لا تتابع وتواصل مع لجنة الانتخابات.</span></div>
+      <div style="display:flex;gap:11px;flex-wrap:wrap">
+        <button class="btn btn-o" style="flex:1" onclick="backToLogin()">← ليس اسمي</button>
+        <button class="btn btn-p btn-lg" style="flex:2" onclick="goToLists()">✔ نعم، هذا اسمي — متابعة</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCREEN 3: LISTS ═══ -->
+<div class="screen" id="sc-lists">
+  <div class="card">
+    <div class="ch"><div class="ch-ico">📋</div><div><h2>اختيار القائمة الانتخابية</h2><p>اختر قائمة واحدة من القوائم الست</p></div></div>
+    <div class="cb">
+      <div class="al al-i" style="margin-bottom:18px"><span class="al-ico">👆</span><span>اختر قائمة واحدة فقط للمتابعة.</span></div>
+      <div class="lists-grid" id="listsGrid"></div>
+      <button class="btn btn-p btn-lg btn-bl" id="btnGoC" disabled onclick="goToCandidates()">عرض المرشحين ←</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCREEN 4: CANDIDATES ═══ -->
+<div class="screen" id="sc-cands">
+  <div class="card">
+    <div class="ch"><div class="ch-ico">🗳️</div><div><h2 id="candHdr">اختيار المرشحين</h2><p>اختر من 1 إلى 5 مرشحين</p></div></div>
+    <div class="cb">
+      <div class="vctr">
+        <div><div class="vctr-lbl">المرشحون المختارون</div><div class="vctr-max">الحد: 1–5</div></div>
+        <div style="text-align:center"><div class="vctr-n" id="selCnt">0</div><div style="font-size:11px;color:var(--mu)">/5</div></div>
+        <div class="bubbles" id="bubbles">
+          <div class="bub" id="b1"></div><div class="bub" id="b2"></div>
+          <div class="bub" id="b3"></div><div class="bub" id="b4"></div><div class="bub" id="b5"></div>
+        </div>
+      </div>
+      <div id="candErr" class="al al-d" style="display:none"><span class="al-ico">⛔</span><span id="candErrMsg"></span></div>
+      <div class="cgrid" id="candGrid"></div>
+      <div style="display:flex;gap:11px;flex-wrap:wrap;margin-top:18px">
+        <button class="btn btn-o" onclick="backToLists()">← القوائم</button>
+        <button class="btn btn-a btn-lg" style="flex:1" onclick="openConfirm()">🗳️ مراجعة وتأكيد ←</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCREEN 5: SUCCESS ═══ -->
+<div class="screen" id="sc-done">
+  <div class="card">
+    <div class="succ">
+      <div class="succ-ico">✅</div>
+      <h2>تم تسجيل صوتك بنجاح!</h2>
+      <p>شكرًا لمشاركتك في انتخابات مجلس البلدي – طوباس 2026</p>
+      <div class="succ-det" id="succDet"></div>
+      <div class="al al-s"><span class="al-ico">🔒</span><span>تمت العملية بشكل آمن وسري.</span></div>
+      <button class="btn btn-o" onclick="resetAll()" style="margin-top:10px">↩ الصفحة الرئيسية</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCREEN ADMIN ═══ -->
+<div class="screen" id="sc-admin">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:22px">
+    <div>
+      <h1 style="font-size:21px;font-weight:900;color:var(--Gd)">🛠️ لوحة إدارة الانتخابات</h1>
+      <div style="font-size:13px;color:var(--mu);margin-top:3px">
+        طوباس 2026 | <span class="tag tag-o" id="elecTag">● مفتوح</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap">
+      <button class="btn btn-d" id="btnToggle" onclick="toggleElec()" style="font-size:13px;padding:9px 15px">🔒 إغلاق</button>
+      <button class="btn btn-p" onclick="doExport()" style="font-size:13px;padding:9px 15px">⬇️ تحميل</button>
+      <button class="btn btn-o" onclick="logoutAdm()" style="font-size:13px;padding:9px 15px">خروج</button>
+    </div>
+  </div>
+  <div class="adm-nav">
+    <button class="anb on" onclick="admTab('ov')">نظرة عامة</button>
+    <button class="anb" onclick="admTab('ls')">نتائج القوائم</button>
+    <button class="anb" onclick="admTab('ca')">نتائج المرشحين</button>
+    <button class="anb" onclick="admTab('sec')" id="secBtn">🔒 الأمان والحماية</button>
+  </div>
+  <div id="aov">
+    <div class="sgrid" id="sGrid"></div>
+    <div class="card"><div class="ch"><div class="ch-ico">📊</div><div><h2>توزيع الأصوات</h2></div></div><div class="cb" id="aPBars"></div></div>
+  </div>
+  <div id="als" style="display:none">
+    <div class="card"><div class="ch"><div class="ch-ico">🏆</div><div><h2>ترتيب القوائم</h2></div></div>
+    <div class="cb"><div class="rtw"><table class="rt"><thead><tr><th>الترتيب</th><th>القائمة</th><th>الأصوات</th><th>النسبة</th><th>المرشحون</th></tr></thead><tbody id="lstTbl"></tbody></table></div></div></div>
+  </div>
+  <div id="aca" style="display:none">
+    <div style="margin-bottom:12px;display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+      <label class="fl" style="margin:0">تصفية:</label>
+      <select id="cfil" onchange="renderCTbl()" style="padding:7px 13px;border:2px solid var(--bd);border-radius:8px;font-family:Tajawal,sans-serif;font-size:13px"></select>
+    </div>
+    <div class="card"><div class="ch"><div class="ch-ico">👥</div><div><h2>ترتيب المرشحين</h2></div></div>
+    <div class="cb"><div class="rtw"><table class="rt"><thead><tr><th>الترتيب</th><th>المرشح</th><th>القائمة</th><th>الجنس</th><th>الأصوات</th></tr></thead><tbody id="candTbl"></tbody></table></div></div></div>
+  </div>
+
+  <!-- تبويب الأمان -->
+  <div id="asec" style="display:none">
+    <!-- إعدادات الحماية -->
+    <div class="card" style="margin-bottom:18px">
+      <div class="ch"><div class="ch-ico">⚙️</div><div><h2>إعدادات الحماية</h2><p>تحكم في آلية منع التصويت المتكرر</p></div></div>
+      <div class="cb">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+          <div style="background:#f8fdf8;border:2px solid var(--bd);border-radius:12px;padding:16px">
+            <div style="font-size:14px;font-weight:700;margin-bottom:10px">🖥️ حماية الجهاز (بصمة المتصفح)</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <label style="font-size:13px;color:#555">الحد الأقصى للتصويت من جهاز واحد:</label>
+              <input type="number" id="maxDevice" min="1" max="10" value="1" style="width:60px;padding:6px;border:2px solid var(--bd);border-radius:6px;text-align:center;font-family:Tajawal,sans-serif"/>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="checkbox" id="blockDevice" checked style="width:16px;height:16px"/>
+              <label for="blockDevice" style="font-size:13px;cursor:pointer">تفعيل الحماية بالجهاز</label>
+            </div>
+          </div>
+          <div style="background:#f8fdf8;border:2px solid var(--bd);border-radius:12px;padding:16px">
+            <div style="font-size:14px;font-weight:700;margin-bottom:10px">🌐 حماية الشبكة (IP)</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <label style="font-size:13px;color:#555">الحد الأقصى من نفس الشبكة:</label>
+              <input type="number" id="maxIP" min="1" max="20" value="3" style="width:60px;padding:6px;border:2px solid var(--bd);border-radius:6px;text-align:center;font-family:Tajawal,sans-serif"/>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="checkbox" id="blockIP" checked style="width:16px;height:16px"/>
+              <label for="blockIP" style="font-size:13px;cursor:pointer">تفعيل الحماية بالشبكة</label>
+            </div>
+            <p style="font-size:11px;color:#999;margin-top:8px">💡 اضبطها على 3-5 لأفراد العائلة من نفس WiFi</p>
+          </div>
+        </div>
+        <button class="btn btn-p" style="margin-top:16px" onclick="saveSecuritySettings()">💾 حفظ الإعدادات</button>
+        <span id="secSaveMsg" style="font-size:13px;color:green;margin-right:10px;display:none">✅ تم الحفظ</span>
+      </div>
+    </div>
+    <!-- إحصائيات الأمان -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px" id="secStats"></div>
+    <!-- أجهزة مشبوهة -->
+    <div class="card" style="margin-bottom:18px">
+      <div class="ch" style="background:linear-gradient(135deg,#c0392b,#e74c3c)"><div class="ch-ico">🚨</div><div><h2>محاولات الحجب</h2><p>أجهزة أو شبكات حاولت التصويت أكثر من مرة</p></div></div>
+      <div class="cb">
+        <div class="rtw"><table class="rt"><thead><tr><th>الجهاز (hash)</th><th>عدد المحاولات</th><th>آخر محاولة</th></tr></thead><tbody id="suspDevTbl"></tbody></table></div>
+      </div>
+    </div>
+    <!-- سجل الأحداث -->
+    <div class="card">
+      <div class="ch" style="background:linear-gradient(135deg,#6b4c11,#92400e)"><div class="ch-ico">📋</div><div><h2>سجل أحداث الأمان</h2><p>آخر 20 حدث</p></div></div>
+      <div class="cb"><div class="rtw"><table class="rt"><thead><tr><th>الوقت</th><th>النوع</th><th>التفاصيل</th></tr></thead><tbody id="secLogTbl"></tbody></table></div></div>
+    </div>
+  </div>
+
+</div>
+</div><!-- /wrap -->
+
+<button class="fab" onclick="openAdm()">⚙️ الإدارة</button>
+<footer>نظام التصويت الإلكتروني — انتخابات مجلس بلدي طوباس 2026 | بيانات مشفرة ومحمية</footer>
+
+<script>
+/* ══════════════════════════════════════════
+   STATE & CONFIG
+══════════════════════════════════════════ */
+const API = '';   // نفس الـ origin — خادم Flask
+const S = {
+  reg: null, voterName: null, voterCenter: null,
+  listId: null, listName: null,
+  chosen: [],
+  admLoggedIn: false,
+  admPass: 'admin@2026',
+  admData: null,
+  fingerprint: ''
+};
+
+/* ══════════════════════════════════════════
+   بصمة الجهاز — Device Fingerprint
+   تعمل حتى مع Incognito Mode
+══════════════════════════════════════════ */
+function generateFingerprint(){
+  const parts = [
+    navigator.userAgent        || '',
+    navigator.language         || '',
+    (navigator.languages||[]).join(','),
+    navigator.platform         || '',
+    screen.width+'x'+screen.height,
+    screen.availWidth+'x'+screen.availHeight,
+    screen.colorDepth          || '',
+    screen.pixelDepth          || '',
+    new Date().getTimezoneOffset(),
+    navigator.cookieEnabled ? '1':'0',
+    navigator.hardwareConcurrency || '',
+    navigator.deviceMemory        || '',
+    window.devicePixelRatio       || '',
+    navigator.maxTouchPoints      || '0',
+    Intl.DateTimeFormat().resolvedOptions().timeZone || ''
+  ];
+  const str = parts.join('§');
+  // djb2 hash — لا يُرسَل للخادم كاملاً، فقط الـ hash
+  let h = 5381;
+  for(let i=0;i<str.length;i++){
+    h = Math.imul(h, 33) ^ str.charCodeAt(i);
+  }
+  const fp = (h>>>0).toString(16).padStart(8,'0') + str.length.toString(36);
+  // تخزين في sessionStorage للاتساق خلال الجلسة
+  sessionStorage.setItem('__t26fp__', fp);
+  return fp;
+}
+
+// توليد البصمة فور تحميل الصفحة
+document.addEventListener('DOMContentLoaded',()=>{
+  S.fingerprint = sessionStorage.getItem('__t26fp__') || generateFingerprint();
+  console.log('[Security] Device fingerprint ready:', S.fingerprint.substring(0,8)+'...');
+});
+
+/* ══════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════ */
+const $  = id => document.getElementById(id);
+const ld = on => $('ld').classList.toggle('on', on);
+
+function setStep(n){
+  for(let i=1;i<=5;i++){
+    const el=$('st'+i);
+    el.classList.remove('active','done');
+    if(i<n) el.classList.add('done');
+    else if(i===n) el.classList.add('active');
+  }
+}
+function showSc(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $(id).classList.add('active');
+}
+function openModal(id){$(id).classList.add('on')}
+function closeModal(id){$(id).classList.remove('on')}
+function showLoginErr(m){$('loginErr').style.display='flex';$('loginErrMsg').textContent=m}
+function hideLoginErr(){$('loginErr').style.display='none'}
+function showCandErr(m){$('candErr').style.display='flex';$('candErrMsg').textContent=m}
+function hideCandErr(){$('candErr').style.display='none'}
+
+/* Arabic digit → Latin */
+function normalizeNum(s){
+  return s.replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/\s+/g,'').trim();
+}
+
+/* ══════════════════════════════════════════
+   SCREEN 1 – LOGIN
+══════════════════════════════════════════ */
+async function doLogin(){
+  hideLoginErr();
+  const raw  = $('regIn').value;
+  const reg  = normalizeNum(raw);
+  if(!reg){showLoginErr('الرجاء إدخال رقم التسجيل الانتخابي.');return;}
+  ld(true);
+  try{
+    // إرسال بصمة الجهاز مع طلب التحقق
+    const fp = S.fingerprint || generateFingerprint();
+    const r  = await fetch(`${API}/api/voter/${encodeURIComponent(reg)}?fp=${encodeURIComponent(fp)}`);
+    const d  = await r.json();
+    if(!d.ok){
+      // إذا كان الخطأ متعلقاً بالجهاز — عرض تنبيه واضح
+      if(d.error && d.error.includes('جهاز')){
+        showLoginErr(d.error);
+        showDeviceBlockedWarning();
+      } else {
+        showLoginErr(d.error||'خطأ في التحقق.');
+      }
+      return;
+    }
+    S.reg = reg;
+    S.voterName   = d.name;
+    S.voterCenter = d.center;
+    showVerify();
+  }catch(e){
+    showLoginErr('تعذّر الاتصال بالخادم. تأكد أن التطبيق يعمل.');
+  }finally{ld(false);}
+}
+
+function showDeviceBlockedWarning(){
+  // تنبيه مرئي واضح
+  const existing = document.getElementById('deviceWarn');
+  if(existing) return;
+  const box = document.createElement('div');
+  box.id = 'deviceWarn';
+  box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  box.innerHTML = `<div style="background:#fff;border-radius:16px;padding:32px;max-width:420px;text-align:center;font-family:Tajawal,sans-serif;direction:rtl">
+    <div style="font-size:48px;margin-bottom:12px">🚫</div>
+    <h2 style="color:#c0392b;font-size:20px;font-weight:900;margin-bottom:10px">تم منع هذا الجهاز</h2>
+    <p style="color:#555;font-size:14px;line-height:1.7">هذا الجهاز قام بالتصويت مسبقاً.<br>لا يُسمح بأكثر من تصويت واحد لكل جهاز.</p>
+    <p style="color:#888;font-size:12px;margin-top:12px">إذا كنت تعتقد أن هذا خطأ، تواصل مع لجنة الانتخابات.</p>
+  </div>`;
+  document.body.appendChild(box);
+}
+
+/* ══════════════════════════════════════════
+   SCREEN 2 – VERIFY
+══════════════════════════════════════════ */
+function showVerify(){
+  $('vName').textContent   = S.voterName;
+  $('vCenter').innerHTML   = '🏫 ' + S.voterCenter;
+  showSc('sc-verify'); setStep(2);
+}
+function backToLogin(){
+  S.reg=null; $('regIn').value=''; hideLoginErr();
+  showSc('sc-login'); setStep(1);
+}
+
+/* ══════════════════════════════════════════
+   SCREEN 3 – LISTS
+══════════════════════════════════════════ */
+async function goToLists(){
+  ld(true);
+  try{
+    const r = await fetch(`${API}/api/candidates`);
+    const d = await r.json();
+    if(!d.ok){alert('تعذّر تحميل القوائم');return;}
+    S.lists = d.lists;
+    renderLists();
+    showSc('sc-lists'); setStep(3);
+  }catch(e){alert('تعذّر الاتصال بالخادم');}
+  finally{ld(false);}
+}
+
+function renderLists(){
+  const g = $('listsGrid'); g.innerHTML='';
+  S.lists.forEach(list=>{
+    const top = list.candidates.slice(0,4).map(c=>`<li>${c.name}</li>`).join('');
+    const el  = document.createElement('div');
+    el.className='lcard'; el.dataset.id=list.id;
+    el.innerHTML=`
+      <div class="lchk">✓</div>
+      <div class="lch">
+        <div class="lnum">رقم ${list.id}</div>
+        <div class="lname">قائمة ${list.name}</div>
+        <div class="lcnt">${list.candidates.length} مرشح</div>
+      </div>
+      <div class="lcb"><ul class="lprev">${top}<li style="color:#bbb;font-style:italic">… وآخرون</li></ul></div>`;
+    el.onclick=()=>selectList(list.id);
+    g.appendChild(el);
+  });
+}
+
+function selectList(id){
+  S.listId   = id;
+  S.listName = S.lists.find(l=>l.id===id).name;
+  S.chosen   = [];
+  document.querySelectorAll('.lcard').forEach(c=>c.classList.toggle('sel',+c.dataset.id===id));
+  $('btnGoC').disabled=false;
+}
+
+function goToCandidates(){
+  if(!S.listId)return;
+  const lst = S.lists.find(l=>l.id===S.listId);
+  $('candHdr').textContent = `مرشحو قائمة "${lst.name}"`;
+  renderCands(lst.candidates);
+  showSc('sc-cands'); setStep(4);
+}
+
+/* ══════════════════════════════════════════
+   SCREEN 4 – CANDIDATES
+══════════════════════════════════════════ */
+function renderCands(cands){
+  const g=$('candGrid'); g.innerHTML='';
+  cands.forEach(c=>{
+    const el=document.createElement('div');
+    el.className='ccard'; el.dataset.n=c.name;
+    el.innerHTML=`
+      <div class="cchk"></div>
+      <div class="cinfo">
+        <div class="cname">${c.name}</div>
+        <div class="cnum">المرشح رقم ${c.order}</div>
+      </div>
+      <span>${c.gender==='أنثى'?'👩':'👨'}</span>`;
+    el.onclick=()=>toggleCand(c.name,el);
+    g.appendChild(el);
+  });
+  updCounter(); hideCandErr();
+}
+
+function toggleCand(name,card){
+  const idx=S.chosen.indexOf(name);
+  if(idx===-1){
+    if(S.chosen.length>=5){showCandErr('⛔ لا يمكن اختيار أكثر من 5 مرشحين.');return;}
+    S.chosen.push(name);
+    card.classList.add('sel'); card.querySelector('.cchk').textContent='✓';
+  }else{
+    S.chosen.splice(idx,1);
+    card.classList.remove('sel'); card.querySelector('.cchk').textContent='';
+  }
+  hideCandErr(); updCounter();
+}
+
+function updCounter(){
+  const n=S.chosen.length;
+  $('selCnt').textContent=n;
+  for(let i=1;i<=5;i++) $('b'+i).classList.toggle('on',i<=n);
+}
+
+function backToLists(){S.chosen=[];showSc('sc-lists');setStep(3);}
+
+/* ══════════════════════════════════════════
+   CONFIRM MODAL
+══════════════════════════════════════════ */
+function openConfirm(){
+  if(S.chosen.length<1){showCandErr('⛔ يجب اختيار مرشح واحد على الأقل.');return;}
+  hideCandErr();
+  $('mListName').textContent=`قائمة ${S.listName}`;
+  $('mCandList').innerHTML=S.chosen.map((n,i)=>
+    `<li><span class="snum">${i+1}</span>${n}</li>`).join('');
+  openModal('mConfirm');
+}
+
+/* ══════════════════════════════════════════
+   SUBMIT VOTE
+══════════════════════════════════════════ */
+async function submitVote(){
+  closeModal('mConfirm'); ld(true);
+  try{
+    const r = await fetch(`${API}/api/vote`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      // إرسال بصمة الجهاز مع الصوت
+      body:JSON.stringify({
+        reg_num:    S.reg,
+        list_id:    S.listId,
+        candidates: S.chosen,
+        fingerprint: S.fingerprint || generateFingerprint()
+      })
+    });
+    const d=await r.json();
+    if(!d.ok){
+      if(d.error && d.error.includes('جهاز')){
+        showDeviceBlockedWarning();
+      } else {
+        alert('خطأ: '+(d.error||'غير معروف'));
+      }
+      return;
+    }
+    showSuccess();
+  }catch(e){alert('تعذّر الاتصال بالخادم.');}
+  finally{ld(false);}
+}
+
+/* ══════════════════════════════════════════
+   SCREEN 5 – SUCCESS
+══════════════════════════════════════════ */
+function showSuccess(){
+  $('succDet').innerHTML=`
+    <div style="display:flex;flex-direction:column;gap:7px">
+      <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed #ddd;font-size:13px">
+        <span style="color:#666">القائمة</span><strong style="color:var(--G)">قائمة ${S.listName}</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed #ddd;font-size:13px">
+        <span style="color:#666">عدد المرشحين</span><strong style="color:var(--G)">${S.chosen.length}</strong></div>
+      ${S.chosen.map((n,i)=>`
+        <div style="display:flex;align-items:center;gap:7px;padding:5px 0;font-size:13px;border-bottom:1px dashed #eee">
+          <span style="width:21px;height:21px;background:var(--G);color:#fff;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">${i+1}</span>
+          <span>${n}</span></div>`).join('')}
+    </div>`;
+  showSc('sc-done'); setStep(5);
+}
+
+function resetAll(){
+  S.reg=S.voterName=S.voterCenter=S.listId=S.listName=null;
+  S.chosen=[]; $('regIn').value=''; hideLoginErr();
+  document.querySelectorAll('.lcard').forEach(c=>c.classList.remove('sel'));
+  $('btnGoC').disabled=true;
+  showSc('sc-login'); setStep(1);
+}
+
+/* ══════════════════════════════════════════
+   ADMIN
+══════════════════════════════════════════ */
+function openAdm(){
+  if(S.admLoggedIn){showAdmPanel();return;}
+  $('admPass').value=''; $('admErr').style.display='none';
+  openModal('mAdmin');
+  setTimeout(()=>$('admPass').focus(),200);
+}
+function chkAdm(){
+  const p=$('admPass').value;
+  if(p===S.admPass){S.admLoggedIn=true;closeModal('mAdmin');showAdmPanel();}
+  else{$('admErr').style.display='flex';$('admPass').value='';}
+}
+function logoutAdm(){
+  S.admLoggedIn=false;
+  $('stepsNav').style.display='';
+  showSc('sc-login'); setStep(1);
+}
+
+async function showAdmPanel(){
+  $('stepsNav').style.display='none';
+  ld(true);
+  try{
+    const r=await fetch(`${API}/api/admin/results`,{headers:{'X-Admin-Pass':S.admPass}});
+    S.admData=await r.json();
+    renderAdm();
+    showSc('sc-admin');
+  }catch(e){alert('تعذّر تحميل بيانات الإدارة');}
+  finally{ld(false);}
+}
+
+function renderAdm(){
+  const D=S.admData;
+  // Stats
+  $('sGrid').innerHTML=`
+    <div class="sc"><div class="sc-v">${D.total_voters.toLocaleString('ar-EG')}</div><div class="sc-l">المسجلون</div></div>
+    <div class="sc ac"><div class="sc-v">${D.total_voted.toLocaleString('ar-EG')}</div><div class="sc-l">صوّتوا</div></div>
+    <div class="sc rc"><div class="sc-v">${(D.total_voters-D.total_voted).toLocaleString('ar-EG')}</div><div class="sc-l">لم يصوّتوا</div></div>
+    <div class="sc"><div class="sc-v">${D.participation_pct}%</div><div class="sc-l">نسبة المشاركة</div></div>
+    <div class="sc"><div class="sc-v">6</div><div class="sc-l">القوائم</div></div>
+    <div class="sc"><div class="sc-v">83</div><div class="sc-l">المرشحون</div></div>`;
+  // Progress bars
+  const tv=D.lists.reduce((a,l)=>a+l.votes,0)||1;
+  $('aPBars').innerHTML=D.lists.map(l=>`
+    <div class="pb-w">
+      <div class="pb-i"><span><strong>قائمة ${l.name}</strong></span><span style="color:var(--G)">${l.votes} صوت (${l.pct}%)</span></div>
+      <div class="pb"><div class="pbf" style="width:${l.pct}%"></div></div>
+    </div>`).join('');
+  // Lists table
+  $('lstTbl').innerHTML=D.lists.map((l,i)=>`<tr>
+    <td><span class="rbadge ${i===0?'g':i===1?'s':i===2?'b':''}">${i+1}</span></td>
+    <td><strong>قائمة ${l.name}</strong></td>
+    <td><strong style="color:var(--G);font-size:15px">${l.votes}</strong></td>
+    <td>${l.pct}%</td><td>${l.candidates_count}</td></tr>`).join('');
+  // Candidate filter
+  const cf=$('cfil'); cf.innerHTML='<option value="all">كل القوائم</option>';
+  D.lists.forEach(l=>{const o=document.createElement('option');o.value=l.name;o.textContent='قائمة '+l.name;cf.appendChild(o);});
+  renderCTbl();
+  renderSecurityTab(D);
+  // Status
+  updateElecUI();
+}
+
+function renderCTbl(){
+  const fv=$('cfil').value;
+  const cands=S.admData.candidates.filter(c=>fv==='all'||c.list===fv);
+  $('candTbl').innerHTML=cands.map((c,i)=>`<tr>
+    <td><span class="rbadge ${i===0?'g':i===1?'s':i===2?'b':''}">${i+1}</span></td>
+    <td>${c.name}</td>
+    <td><span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:700">${c.list}</span></td>
+    <td>${c.gender==='أنثى'?'👩 أنثى':'👨 ذكر'}</td>
+    <td><strong style="color:var(--G);font-size:14px">${c.votes}</strong></td></tr>`).join('');
+}
+
+function admTab(t){
+  ['ov','ls','ca','sec'].forEach(x=>{
+    const el=$('a'+x); if(el) el.style.display=x===t?'':'none';
+  });
+  document.querySelectorAll('.anb').forEach((b,i)=>{
+    b.classList.toggle('on',['ov','ls','ca','sec'][i]===t);
+  });
+}
+
+async function toggleElec(){
+  ld(true);
+  try{
+    const r=await fetch(`${API}/api/admin/toggle`,{method:'POST',headers:{'X-Admin-Pass':S.admPass}});
+    const d=await r.json();
+    if(d.ok){S.admData.election_open=d.open;updateElecUI();}
+  }finally{ld(false);}
+}
+
+function updateElecUI(){
+  const open=S.admData?.election_open??true;
+  $('elecTag').className='tag '+(open?'tag-o':'tag-c');
+  $('elecTag').textContent=open?'● مفتوح':'● مغلق';
+  $('btnToggle').textContent=open?'🔒 إغلاق':'🔓 فتح';
+  $('btnToggle').className='btn '+(open?'btn-d':'btn-p');
+}
+
+/* ══ SECURITY TAB ══ */
+function renderSecurityTab(D){
+  const cfg = D.security_settings || {};
+  // ملء الإعدادات
+  if($('maxDevice')) $('maxDevice').value = cfg.max_votes_per_device || 1;
+  if($('maxIP'))     $('maxIP').value     = cfg.max_votes_per_ip     || 3;
+  if($('blockDevice')) $('blockDevice').checked = cfg.block_device !== false;
+  if($('blockIP'))     $('blockIP').checked     = cfg.block_ip     !== false;
+
+  // إحصائيات الأمان
+  const ss = $('secStats');
+  if(ss) ss.innerHTML = `
+    <div class="sc"><div class="sc-v">${D.total_devices||0}</div><div class="sc-l">أجهزة فريدة</div></div>
+    <div class="sc rc"><div class="sc-v">${D.blocked_attempts||0}</div><div class="sc-l">محاولات محجوبة</div></div>
+    <div class="sc ac"><div class="sc-v">${cfg.max_votes_per_device||1}</div><div class="sc-l">حد الجهاز</div></div>
+    <div class="sc"><div class="sc-v">${cfg.max_votes_per_ip||3}</div><div class="sc-l">حد الشبكة</div></div>`;
+
+  // أجهزة مشبوهة
+  const susp = D.suspicious_devices || [];
+  const suspIp = D.suspicious_ips   || [];
+  const combined = [...susp.map(x=>({...x,type:'جهاز'})), ...suspIp.map(x=>({...x,type:'شبكة IP'}))];
+  combined.sort((a,b)=>b.votes-a.votes);
+  const dt = $('suspDevTbl');
+  if(dt) dt.innerHTML = combined.length > 0
+    ? combined.map(d=>`<tr>
+        <td><code style="font-size:11px;background:#f3f4f6;padding:2px 6px;border-radius:4px">${d.fp||d.ip||'—'}</code>
+            <span style="margin-right:6px;font-size:11px;color:#666">(${d.type})</span></td>
+        <td><strong style="color:${d.votes>1?'#c0392b':'#1a6b3c'};font-size:15px">${d.votes}</strong></td>
+        <td style="font-size:12px;color:#666">${d.last||'—'}</td></tr>`).join('')
+    : '<tr><td colspan="3" style="text-align:center;color:#9ca3af;padding:20px">✅ لا توجد محاولات مشبوهة</td></tr>';
+
+  // سجل الأحداث
+  const log = D.recent_security_log || [];
+  const lt  = $('secLogTbl');
+  const typeLabel = t => t==='DEVICE_BLOCKED_AT_LOGIN'?'🚫 حجب عند الدخول':t==='DEVICE_BLOCKED_AT_VOTE'?'🚫 حجب عند التصويت':t;
+  if(lt) lt.innerHTML = log.length > 0
+    ? log.map(e=>`<tr>
+        <td style="font-size:12px;white-space:nowrap">${e.time}</td>
+        <td>${typeLabel(e.type)}</td>
+        <td><code style="font-size:11px">${JSON.stringify(e.detail)}</code></td></tr>`).join('')
+    : '<tr><td colspan="3" style="text-align:center;color:#9ca3af;padding:20px">✅ لا توجد أحداث مسجلة</td></tr>';
+}
+
+async function saveSecuritySettings(){
+  const body = {
+    max_votes_per_device: parseInt($('maxDevice').value)||1,
+    max_votes_per_ip:     parseInt($('maxIP').value)||3,
+    block_device:         $('blockDevice').checked,
+    block_ip:             $('blockIP').checked
+  };
+  try{
+    const r = await fetch(`${API}/api/admin/security`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Admin-Pass':S.admPass},
+      body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if(d.ok){
+      const m = $('secSaveMsg'); m.style.display='inline'; setTimeout(()=>m.style.display='none',3000);
+    }
+  }catch(e){alert('خطأ في الحفظ');}
+}
+
+function doExport(){
+  const D=S.admData; if(!D)return;
+  const lines=['نتائج انتخابات مجلس بلدي طوباس 2026','='.repeat(45),'',
+    'نتائج القوائم:','-'.repeat(30),
+    ...D.lists.map((l,i)=>`${i+1}. قائمة ${l.name}: ${l.votes} صوت (${l.pct}%)`),
+    '','نتائج المرشحين:','-'.repeat(30),
+    ...D.candidates.map((c,i)=>`${i+1}. ${c.name} (${c.list}): ${c.votes} صوت`),
+    '','إجمالي المصوتين: '+D.total_voted,
+    'إجمالي الناخبين: '+D.total_voters];
+  const blob=new Blob([lines.join('\n')],{type:'text/plain;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='نتائج_طوباس_2026.txt';
+  a.click();
+}
+</script>
+</body>
+</html>
