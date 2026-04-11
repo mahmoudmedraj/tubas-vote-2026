@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-نظام التصويت الإلكتروني – طوباس 2026
+نظام استطلاع الرأي الإلكتروني – طوباس 2026
 نسخة محسّنة بحماية ثلاثية: بصمة الجهاز + IP + منع التصويت المتكرر
 """
 
@@ -189,7 +189,7 @@ def api_voter(reg):
 
     voted = rj(VOTED_FILE, {})
     if voted.get(h(reg.strip())):
-        return jsonify({'ok': False, 'error': 'لقد قام هذا الرقم الانتخابي بالتصويت مسبقاً'}), 403
+        return jsonify({'ok': False, 'error': 'هذا الرقم شارك في الاستطلاع مسبقاً'}), 403
 
     return jsonify({'ok': True, 'name': voter['name'], 'center': voter['center']})
 
@@ -235,7 +235,7 @@ def api_vote():
         voted = rj(VOTED_FILE, {})
         reg_h = h(reg)
         if voted.get(reg_h):
-            return jsonify({'ok': False, 'error': 'تم التصويت بهذا الرقم مسبقاً'}), 403
+            return jsonify({'ok': False, 'error': 'هذا الرقم شارك مسبقاً'}), 403
 
         # ── التحقق من الجهاز / IP ──
         allowed, err = check_device(fp_hash, ip_hash, cfg)
@@ -261,7 +261,7 @@ def api_vote():
         # ── تسجيل الجهاز ──
         record_device(fp_hash, ip_hash, reg_h)
 
-    return jsonify({'ok': True, 'msg': 'تم تسجيل صوتك بنجاح'})
+    return jsonify({'ok': True, 'msg': 'تم تسجيل رأيك بنجاح'})
 
 
 # ─── API: إدارة - نتائج ────────────────────────────────────────────
@@ -362,7 +362,7 @@ load_data()
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5050))
     print(f'\n{"="*52}')
-    print(f'  نظام التصويت الإلكتروني – طوباس 2026')
+    print(f'  نظام استطلاع الرأي الإلكتروني – طوباس 2026')
     print(f'  الرابط:  http://localhost:{port}')
     print(f'  ناخبون: {len(VOTERS_DB):,}')
     print(f'  الحماية: بصمة الجهاز + IP + منع التكرار')
