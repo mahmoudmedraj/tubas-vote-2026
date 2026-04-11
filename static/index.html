@@ -281,33 +281,40 @@ footer{background:var(--Gd);color:rgba(255,255,255,.55);text-align:center;paddin
         <div class="fh">📋 مثال: 2174412 أو 91907445</div>
       </div>
 
-      <!-- بحث عن رقم التسجيل -->
-      <div style="background:#f0f9ff;border:2px solid #38bdf8;border-radius:12px;padding:16px;margin-bottom:18px">
-        <div style="font-size:13px;font-weight:800;color:#0369a1;margin-bottom:12px;display:flex;align-items:center;gap:7px">
-          🔍 لا تعرف رقمك الانتخابي؟ ابحث هنا
+      <!-- بطاقة إرشادية للرقم الانتخابي -->
+      <div style="background:#f0f9ff;border:2px solid #38bdf8;border-radius:14px;padding:18px;margin-bottom:18px">
+        <div style="font-size:13px;font-weight:900;color:#0369a1;margin-bottom:14px;display:flex;align-items:center;gap:8px">
+          ❓ لا تعرف رقمك الانتخابي؟
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-          <div>
-            <div style="font-size:11px;font-weight:600;color:#555;margin-bottom:4px">رقم الهوية</div>
-            <input type="text" id="lookupId" class="fc" placeholder="123456789"
-              style="text-align:right;letter-spacing:0;font-size:14px;padding:10px 12px"/>
+        <div style="background:#fff;border-radius:10px;padding:14px;margin-bottom:14px">
+          <div style="font-size:13px;font-weight:700;color:#334155;margin-bottom:10px">اتبع الخطوات التالية:</div>
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <div style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#475569">
+              <span style="width:24px;height:24px;background:#0369a1;color:#fff;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;flex-shrink:0">١</span>
+              <span>اضغط الزر الأزرق أدناه ← يفتح موقع لجنة الانتخابات</span>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#475569">
+              <span style="width:24px;height:24px;background:#0369a1;color:#fff;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;flex-shrink:0">٢</span>
+              <span>أدخل <strong>رقم هويتك</strong> و<strong>سنة ميلادك</strong> في الموقع</span>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#475569">
+              <span style="width:24px;height:24px;background:#0369a1;color:#fff;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;flex-shrink:0">٣</span>
+              <span>احفظ <strong>رقم التسجيل الانتخابي</strong> الذي يظهر لك</span>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#475569">
+              <span style="width:24px;height:24px;background:#22c55e;color:#fff;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;flex-shrink:0">٤</span>
+              <span>ارجع هنا وأدخل الرقم في الحقل أعلاه ✅</span>
+            </div>
           </div>
-          <div>
-            <div style="font-size:11px;font-weight:600;color:#555;margin-bottom:4px">سنة الميلاد</div>
-            <input type="text" id="lookupYear" class="fc" placeholder="1990"
-              style="text-align:right;letter-spacing:0;font-size:14px;padding:10px 12px" maxlength="4"/>
-          </div>
         </div>
-        <button class="btn btn-p btn-bl" onclick="doLookup()" id="btnLookup"
-          style="font-size:13px;padding:10px;background:linear-gradient(135deg,#0369a1,#0ea5e9)">
-          🔍 ابحث عن رقمي الانتخابي
-        </button>
-        <div id="lookupResult" style="margin-top:10px;display:none"></div>
-        <div style="margin-top:8px;font-size:11px;color:#888;text-align:center">
-          أو <a href="https://www.elections.ps/tabid/596/language/ar-PS/Default.aspx" target="_blank" style="color:#0369a1;font-weight:700">
-          ابحث مباشرة في موقع لجنة الانتخابات ↗</a>
-        </div>
-      </div>
+        <a href="https://www.elections.ps/tabid/596/language/ar-PS/Default.aspx" target="_blank" rel="noopener"
+          style="display:flex;align-items:center;justify-content:center;gap:8px;
+                 background:linear-gradient(135deg,#0369a1,#0ea5e9);color:#fff;
+                 padding:12px 20px;border-radius:10px;font-size:14px;font-weight:800;
+                 text-decoration:none;font-family:Tajawal,sans-serif">
+          🌐 الاستعلام عن رقمي الانتخابي
+          <span style="font-size:12px;opacity:.85">↗ يفتح في تبويب جديد</span>
+        </a>
       </div>
       <button class="btn btn-p btn-lg btn-bl" onclick="doLogin()">دخول والتحقق ←</button>
     </div>
@@ -566,61 +573,6 @@ function normalizeNum(s){
    SCREEN 1 – LOGIN
 ══════════════════════════════════════════ */
 
-async function doLookup(){
-  const id   = document.getElementById('lookupId').value.trim();
-  const year = document.getElementById('lookupYear').value.trim();
-  const res  = document.getElementById('lookupResult');
-  const btn  = document.getElementById('btnLookup');
-  if(!id||!year){
-    res.style.display='block';
-    res.innerHTML='<div style="color:#c0392b;font-size:13px">⚠️ أدخل رقم الهوية وسنة الميلاد</div>';
-    return;
-  }
-  btn.disabled=true; btn.textContent='⏳ جاري البحث...';
-  res.style.display='none';
-  try{
-    const r = await fetch('/api/lookup',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({id,year})
-    });
-    const d = await r.json();
-    if(d.ok){
-      res.style.display='block';
-      res.innerHTML=`<div style="background:#f0fdf4;border:2px solid #86efac;border-radius:10px;padding:12px">
-        <div style="font-size:12px;color:#166534;font-weight:700;margin-bottom:6px">✅ تم العثور على بياناتك</div>
-        ${d.name?`<div style="font-size:13px;color:#333;margin-bottom:8px">الاسم: <strong>${d.name}</strong></div>`:''}
-        <div style="font-size:12px;color:#555;margin-bottom:8px">رقم تسجيلك الانتخابي:</div>
-        <div style="font-size:22px;font-weight:900;color:#1a6b3c;letter-spacing:3px;text-align:center;
-          background:#fff;border:2px dashed #86efac;border-radius:8px;padding:8px;margin-bottom:10px">
-          ${d.reg}
-        </div>
-        <button class="btn btn-p btn-bl" onclick="useRegNum('${d.reg}')"
-          style="font-size:13px;padding:10px">
-          ✔ استخدم هذا الرقم للمشاركة
-        </button>
-      </div>`;
-    } else {
-      res.style.display='block';
-      res.innerHTML=`<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px;font-size:13px;color:#c0392b">
-        ⛔ ${d.error}
-      </div>`;
-    }
-  }catch(e){
-    res.style.display='block';
-    res.innerHTML='<div style="color:#c0392b;font-size:13px">⛔ تعذر الاتصال بالخادم</div>';
-  }
-  btn.disabled=false; btn.textContent='🔍 ابحث عن رقمي الانتخابي';
-}
-
-function useRegNum(reg){
-  document.getElementById('regIn').value = reg;
-  document.getElementById('lookupResult').style.display='none';
-  document.getElementById('lookupId').value='';
-  document.getElementById('lookupYear').value='';
-  // تمرير للحقل الرئيسي
-  document.getElementById('regIn').focus();
-  document.getElementById('regIn').scrollIntoView({behavior:'smooth',block:'center'});
-}
 
 async function doLogin(){
   hideLoginErr();
