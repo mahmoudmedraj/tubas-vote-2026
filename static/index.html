@@ -266,6 +266,18 @@ footer{background:var(--Gd);color:rgba(255,255,255,.55);text-align:center;paddin
         <input type="text" id="regIn" class="fc" placeholder="أدخل الرقم..." maxlength="20" inputmode="numeric" onkeydown="if(event.key==='Enter')doLogin()"/>
         <div class="fh">📋 مثال: 2174412 أو 91907445</div>
       </div>
+      <!-- رابط البحث عن الرقم الانتخابي -->
+      <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:12px 16px;margin-bottom:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:20px">🔍</span>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:#1e40af;margin-bottom:3px">لا تعرف رقمك الانتخابي؟</div>
+          <a href="https://www.elections.ps/tabid/596/language/ar-PS/Default.aspx" target="_blank" rel="noopener"
+             style="font-size:13px;color:#2563eb;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:4px">
+            اضغط هنا للبحث في موقع لجنة الانتخابات المركزية
+            <span style="font-size:11px">↗</span>
+          </a>
+        </div>
+      </div>
       <button class="btn btn-p btn-lg btn-bl" onclick="doLogin()">دخول والتحقق ←</button>
     </div>
   </div>
