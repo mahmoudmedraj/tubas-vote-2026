@@ -335,6 +335,54 @@ def api_security():
 def index():
     return send_from_directory('static','index.html')
 
+
+@app.route('/api/lookup', methods=['POST'])
+def api_lookup():
+    """البحث عن رقم التسجيل من موقع لجنة الانتخابات"""
+    import re
+    from bs4 import BeautifulSoup as BS
+    data  = request.get_json(silent=True) or {}
+    palid = str(data.get('id','')).strip()
+    year  = str(data.get('year','')).strip()
+    if not palid or not year:
+        return jsonify({'ok':False,'error':'أدخل رقم الهوية وسنة الميلاد'}),400
+    try:
+        import urllib.request as ur, urllib.parse as up
+        CEC = 'https://www.elections.ps/tabid/596/language/ar-PS/Default.aspx'
+        req1 = ur.Request(CEC, headers={'User-Agent':'Mozilla/5.0'})
+        with ur.urlopen(req1, timeout=10) as res:
+            page = res.read().decode('utf-8','ignore')
+        def gv(name):
+            m = re.search(rf'name="{re.escape(name)}"[^>]*value="([^"]*)"', page)
+            return m.group(1) if m else ''
+        payload = up.urlencode({
+            '__VIEWSTATE': gv('__VIEWSTATE'),
+            '__VIEWSTATEGENERATOR': gv('__VIEWSTATEGENERATOR'),
+            '__EVENTVALIDATION': gv('__EVENTVALIDATION'),
+            'dnn$ctr4525$View$PalID': palid,
+            'dnn$ctr4525$View$YearOfBirth': year,
+            'dnn$ctr4525$View$btnSearch': 'بحث',
+            'g-recaptcha-response': '',
+        }).encode('utf-8')
+        req2 = ur.Request(CEC, data=payload, headers={
+            'User-Agent':'Mozilla/5.0','Content-Type':'application/x-www-form-urlencoded',
+            'Referer': CEC})
+        with ur.urlopen(req2, timeout=12) as res2:
+            page2 = res2.read().decode('utf-8','ignore')
+        m = re.search(r'lblRegNum[^>]*>([\d]+)<', page2)
+        if m:
+            reg = m.group(1)
+            # استخراج الاسم أيضاً
+            nm = re.search(r'lblName[^>]*>([^<]+)<', page2)
+            name = nm.group(1).strip() if nm else ''
+            return jsonify({'ok':True,'reg':reg,'name':name})
+        if 'لا يوجد' in page2 or 'غير مسجل' in page2:
+            return jsonify({'ok':False,'error':'لم يتم العثور على بيانات لهذا الرقم'})
+        return jsonify({'ok':False,'error':'تعذر استرجاع البيانات، حاول مرة أخرى'})
+    except Exception as e:
+        return jsonify({'ok':False,'error':f'خطأ في الاتصال: {str(e)[:60]}'}),500
+
+
 load_data()
 init_db()
 
