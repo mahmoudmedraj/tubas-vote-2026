@@ -267,7 +267,7 @@ def api_vote():
 # ─── API: إدارة - نتائج ────────────────────────────────────────────
 @app.route('/api/admin/results')
 def api_results():
-    if request.headers.get('X-Admin-Pass') != 'admin@2026':
+    if request.headers.get('X-Admin-Pass') != 'Tubas@0598652625':
         return jsonify({'ok': False, 'error': 'غير مصرح'}), 401
 
     votes   = rj(VOTES_FILE,  {'lists': {}, 'candidates': {}, 'total': 0})
@@ -327,7 +327,7 @@ def api_results():
 # ─── API: تحديث إعدادات الأمان ────────────────────────────────────
 @app.route('/api/admin/security', methods=['POST'])
 def api_security():
-    if request.headers.get('X-Admin-Pass') != 'admin@2026':
+    if request.headers.get('X-Admin-Pass') != 'Tubas@0598652625':
         return jsonify({'ok': False, 'error': 'غير مصرح'}), 401
     data = request.get_json(silent=True) or {}
     cfg  = rj(STATUS_FILE, {})
@@ -342,7 +342,7 @@ def api_security():
 # ─── API: إغلاق/فتح التصويت ──────────────────────────────────────
 @app.route('/api/admin/toggle', methods=['POST'])
 def api_toggle():
-    if request.headers.get('X-Admin-Pass') != 'admin@2026':
+    if request.headers.get('X-Admin-Pass') != 'Tubas@0598652625':
         return jsonify({'ok': False, 'error': 'غير مصرح'}), 401
     cfg = rj(STATUS_FILE, {})
     cfg['open'] = not cfg.get('open', True)
