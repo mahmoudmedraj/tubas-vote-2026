@@ -91,16 +91,30 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--tx);min-h
 .lists-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-bottom:20px}
 .lcard{border:2.5px solid var(--bd);border-radius:var(--rad);overflow:hidden;cursor:pointer;transition:all .28s;background:#fff;position:relative}
 .lcard:hover{border-color:var(--G);box-shadow:var(--shl);transform:translateY(-3px)}
-.lcard.sel{border-color:var(--G);box-shadow:0 0 0 3px rgba(26,107,60,.2),var(--shl)}
+.lcard.sel{
+  border-color:#c0392b!important;
+  box-shadow:0 0 0 4px rgba(192,57,43,.35), 0 8px 32px rgba(192,57,43,.25)!important;
+  transform:translateY(-4px) scale(1.02);
+}
+.lcard.sel .lch{background:linear-gradient(135deg,#c0392b,#e74c3c)!important;}
+.lcard.sel::after{
+  content:'✔ تم الاختيار';
+  position:absolute;bottom:0;left:0;right:0;
+  background:#c0392b;color:#fff;
+  text-align:center;padding:7px;
+  font-size:13px;font-weight:900;
+  font-family:'Tajawal',sans-serif;
+  letter-spacing:.5px;
+}
 .lch{background:linear-gradient(135deg,var(--G),var(--Gl));color:#fff;padding:14px;text-align:center;position:relative}
 .lnum{position:absolute;top:7px;left:10px;background:rgba(255,255,255,.2);border-radius:7px;padding:2px 7px;font-size:11px;font-weight:700}
 .lname{font-size:17px;font-weight:900;margin-bottom:3px}
 .lcnt{font-size:12px;opacity:.85}
-.lcb{padding:10px 12px}
+.lcb{padding:10px 12px 10px}
 .lprev{font-size:12px;color:var(--mu);line-height:1.8;list-style:none}
 .lprev li{padding:2px 0;border-bottom:1px dashed #eee}
 .lprev li:last-child{border-bottom:none}
-.lchk{position:absolute;top:7px;right:7px;width:22px;height:22px;background:var(--A);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:11px;color:#fff}
+.lchk{position:absolute;top:8px;right:8px;width:32px;height:32px;background:#fff;border-radius:50%;display:none;align-items:center;justify-content:center;font-size:18px;color:#c0392b;box-shadow:0 2px 8px rgba(0,0,0,.25);font-weight:900}
 .lcard.sel .lchk{display:flex}
 
 /* CANDIDATES */
