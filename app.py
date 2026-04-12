@@ -244,6 +244,31 @@ def api_debug():
         'in_memory_voted': len(VOTED_CACHE),
     })
 
+
+@app.route('/api/admin/inject-history', methods=['POST'])
+def api_inject_history():
+    """Inject historical vote data - one time use"""
+    import hashlib as _hs
+    data = request.get_json(silent=True) or {}
+    if data.get('password') != ADMIN_PW():
+        return jsonify({'ok':False,'error':'غير مصرح'}), 401
+    total = int(data.get('total', 849))
+    # Build dummy voted entries to represent historical voters
+    voted_data = {}
+    for i in range(total):
+        k = _hs.sha256(f"historical_{i}".encode()).hexdigest()[:16]
+        voted_data[k] = "2026-04-12 00:00:00"
+    db_set('voted', voted_data)
+    # Set vote totals
+    votes_data = db_get('votes', {'total':0,'lists':{},'candidates':{}})
+    votes_data['total'] = total
+    db_set('votes', votes_data)
+    # Load into memory
+    for k in voted_data:
+        VOTED_CACHE.add(k)
+    return jsonify({'ok':True,'msg':f'تم حقن {total} صوت تاريخي','total':total})
+
+
 load_excel()
 init_db()
 load_history()
