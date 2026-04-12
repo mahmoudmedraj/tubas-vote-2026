@@ -478,8 +478,9 @@ def api_verify_otp():
     if otp_data.get('code') != code:
         return jsonify({'ok':False,'error':'الرمز غير صحيح، حاول مرة أخرى'}),400
     # حذف OTP بعد التحقق
+    phone_val = otp_data.get('phone','')
     db_set(otp_key, {})
-    return jsonify({'ok':True,'msg':'تم التحقق بنجاح'})
+    return jsonify({'ok':True,'msg':'تم التحقق بنجاح','phone_hash': h(phone_val)})
 
 @app.route('/api/debug-otp')
 def api_debug_otp():
