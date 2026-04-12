@@ -5,7 +5,7 @@
 تخزين ثلاثي الطبقات: ذاكرة + PostgreSQL + JSON
 """
 
-import os, json, hashlib, threading
+import os, base64, json, hashlib, threading
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
@@ -386,22 +386,32 @@ def api_lookup():
 import random, time as _time
 
 def send_otp_sms(phone, code):
-    """إرسال رمز OTP عبر Twilio"""
+    """إرسال رمز OTP عبر Twilio REST API مباشرة"""
+    import urllib.request as ur, urllib.parse as up
     try:
-        from twilio.rest import Client
         sid   = os.environ.get('TWILIO_SID',   '')
         token = os.environ.get('TWILIO_TOKEN', '')
         from_ = os.environ.get('TWILIO_FROM',  '')
         if not all([sid, token, from_]):
-            print("[OTP] Twilio credentials missing")
+            print(f"[OTP] Missing: SID={bool(sid)} TOKEN={bool(token)} FROM={bool(from_)}")
             return False
-        client = Client(sid, token)
-        msg = f"رمز التحقق الخاص بك هو ({code}) مع تحيات راديو بروفا"
-        client.messages.create(body=msg, from_=from_, to=phone)
-        print(f"[OTP] SMS sent to {phone[:6]}***")
-        return True
+        url  = f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"
+        body = f"رمز التحقق الخاص بك هو ({code}) مع تحيات راديو بروفا"
+        data = up.urlencode({'From': from_, 'To': phone, 'Body': body}).encode()
+        cred = base64.b64encode(f"{sid}:{token}".encode()).decode()
+        req  = ur.Request(url, data=data,
+                          headers={"Authorization": f"Basic {cred}",
+                                   "Content-Type": "application/x-www-form-urlencoded"})
+        with ur.urlopen(req, timeout=15) as res:
+            result = json.loads(res.read())
+            print(f"[OTP] Sent: {result.get('sid')} status={result.get('status')}")
+            return True
+    except ur.HTTPError as e:
+        err = json.loads(e.read())
+        print(f"[OTP] Twilio error {e.code}: {err.get('message')} code={err.get('code')}")
+        return False
     except Exception as e:
-        print(f"[OTP] Error: {e}")
+        print(f"[OTP] Exception: {e}")
         return False
 
 @app.route('/api/send-otp', methods=['POST'])
