@@ -383,6 +383,79 @@ def api_lookup():
         return jsonify({'ok':False,'error':f'خطأ في الاتصال: {str(e)[:60]}'}),500
 
 
+import random, time as _time
+
+def send_otp_sms(phone, code):
+    """إرسال رمز OTP عبر Twilio"""
+    try:
+        from twilio.rest import Client
+        sid   = os.environ.get('TWILIO_SID',   '')
+        token = os.environ.get('TWILIO_TOKEN', '')
+        from_ = os.environ.get('TWILIO_FROM',  '')
+        if not all([sid, token, from_]):
+            print("[OTP] Twilio credentials missing")
+            return False
+        client = Client(sid, token)
+        msg = f"رمز التحقق الخاص بك هو ({code}) مع تحيات راديو بروفا"
+        client.messages.create(body=msg, from_=from_, to=phone)
+        print(f"[OTP] SMS sent to {phone[:6]}***")
+        return True
+    except Exception as e:
+        print(f"[OTP] Error: {e}")
+        return False
+
+@app.route('/api/send-otp', methods=['POST'])
+def api_send_otp():
+    data  = request.get_json(silent=True) or {}
+    reg   = str(data.get('reg_num','')).strip()
+    phone = str(data.get('phone','')).strip()
+    if not reg or not phone:
+        return jsonify({'ok':False,'error':'بيانات ناقصة'}),400
+    # تحقق رقم الجوال
+    phone = phone.replace(' ','').replace('-','')
+    if not phone.startswith('+'):
+        phone = '+970' + phone.lstrip('0')
+    if len(phone) < 10:
+        return jsonify({'ok':False,'error':'رقم الجوال غير صحيح'}),400
+    voter = find_voter(reg)
+    if not voter:
+        return jsonify({'ok':False,'error':'رقم انتخابي غير صالح'}),400
+    # توليد OTP 6 أرقام
+    code = str(random.randint(100000, 999999))
+    otp_key = 'otp_' + h(reg)
+    otp_data = {
+        'code':    code,
+        'phone':   phone,
+        'reg':     h(reg),
+        'expires': _time.time() + 300  # 5 دقائق
+    }
+    db_set(otp_key, otp_data)
+    # إرسال SMS
+    sent = send_otp_sms(phone, code)
+    if sent:
+        return jsonify({'ok':True,'msg':f'تم إرسال رمز التحقق إلى {phone[:5]}***{phone[-3:]}'})
+    else:
+        return jsonify({'ok':False,'error':'فشل إرسال الرسالة، تحقق من رقم الجوال'}),500
+
+@app.route('/api/verify-otp', methods=['POST'])
+def api_verify_otp():
+    data  = request.get_json(silent=True) or {}
+    reg   = str(data.get('reg_num','')).strip()
+    code  = str(data.get('code','')).strip()
+    if not reg or not code:
+        return jsonify({'ok':False,'error':'بيانات ناقصة'}),400
+    otp_key  = 'otp_' + h(reg)
+    otp_data = db_get(otp_key, {})
+    if not otp_data:
+        return jsonify({'ok':False,'error':'لم يتم إرسال رمز بعد، اضغط إرسال أولاً'}),400
+    if _time.time() > otp_data.get('expires', 0):
+        return jsonify({'ok':False,'error':'انتهت صلاحية الرمز، اضغط إرسال مجدداً'}),400
+    if otp_data.get('code') != code:
+        return jsonify({'ok':False,'error':'الرمز غير صحيح، حاول مرة أخرى'}),400
+    # حذف OTP بعد التحقق
+    db_set(otp_key, {})
+    return jsonify({'ok':True,'msg':'تم التحقق بنجاح'})
+
 load_data()
 init_db()
 
