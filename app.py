@@ -1,507 +1,253 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-استطلاع رأي إلكتروني – طوباس 2026
-تخزين ثلاثي الطبقات: ذاكرة + PostgreSQL + JSON
-"""
-
-import os, base64, json, hashlib, threading
+import os, json, hashlib, threading, base64
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
-import pandas as pd
+import time as _time
 
 app = Flask(__name__, static_folder='static', static_url_path='')
-CORS(app)
 
-BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR   = os.path.join(BASE_DIR, 'data')
-EXCEL_FILE = os.path.join(DATA_DIR, 'voters.xlsx')
-os.makedirs(DATA_DIR, exist_ok=True)
+# ── DB helpers ────────────────────────────────────────────────
+_DB_LOCK = threading.Lock()
 
-lock         = threading.Lock()
-DATABASE_URL = os.environ.get('DATABASE_URL', '')
-
-# ══ ذاكرة عشان: في حالة ما عندنا DB لا يصوت نفس الشخص مرتين ═══════
-# تُحمَّل من DB عند بدء التشغيل وتبقى في الذاكرة طوال الجلسة
-VOTED_CACHE   = set()   # أرقام الناخبين (hash) الذين صوّتوا
-DEVICES_CACHE = {}      # بصمات الأجهزة
-IP_CACHE      = {}      # عدد الأصوات لكل IP
-
-# ══ PostgreSQL ══════════════════════════════════════════════════════
-def get_conn():
-    import psycopg2
-    url = DATABASE_URL
-    # Supabase يحتاج ?sslmode=require
-    if 'supabase' in url and 'sslmode' not in url:
-        url += '?sslmode=require'
-    return psycopg2.connect(url, connect_timeout=8)
-
-def init_db():
-    global VOTED_CACHE, DEVICES_CACHE, IP_CACHE
-    if not DATABASE_URL:
-        print("[DB] No DATABASE_URL — using memory+JSON fallback")
-        # تحميل من JSON إذا موجود
-        v = _file_get('voted', {})
-        VOTED_CACHE = set(v.keys())
-        d = _file_get('devices', {'fingerprints':{},'ips':{}})
-        DEVICES_CACHE = d.get('fingerprints',{})
-        IP_CACHE      = d.get('ips',{})
-        return
+def get_db():
+    url = os.environ.get('DATABASE_URL','')
+    if not url: return None
     try:
-        with get_conn() as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS kv_store (
-                        key TEXT PRIMARY KEY,
-                        value TEXT NOT NULL DEFAULT '{}'
-                    )
-                """)
-            conn.commit()
-        # تحميل البيانات الموجودة في الذاكرة
-        voted   = db_get('voted',   {})
-        devices = db_get('devices', {'fingerprints':{},'ips':{}})
-        VOTED_CACHE   = set(voted.keys())
-        DEVICES_CACHE = devices.get('fingerprints',{})
-        IP_CACHE      = devices.get('ips',{})
-        print(f"[DB] PostgreSQL ✅ — {len(VOTED_CACHE)} votes loaded from DB")
-    except Exception as e:
-        print(f"[DB] Warning: {e} — falling back to memory+JSON")
-        v = _file_get('voted', {})
-        VOTED_CACHE = set(v.keys())
+        import psycopg2
+        conn = psycopg2.connect(url, connect_timeout=5)
+        return conn
+    except: return None
 
-def db_get(key, default):
-    if not DATABASE_URL:
-        return _file_get(key, default)
+def db_get(key, default=None):
+    conn = get_db()
+    if not conn:
+        return CACHE.get(key, default)
     try:
-        with get_conn() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT value FROM kv_store WHERE key=%s", (key,))
-                row = cur.fetchone()
-                return json.loads(row[0]) if row else default
-    except Exception as e:
-        print(f"[DB] get({key}): {e}")
-        return _file_get(key, default)
+        with conn.cursor() as c:
+            c.execute("SELECT value FROM kv_store WHERE key=%s", (key,))
+            row = c.fetchone()
+            conn.close()
+            return json.loads(row[0]) if row else default
+    except:
+        conn.close()
+        return CACHE.get(key, default)
 
 def db_set(key, value):
-    if not DATABASE_URL:
-        return _file_set(key, value)
+    CACHE[key] = value
+    conn = get_db()
+    if not conn: return
     try:
-        v = json.dumps(value, ensure_ascii=False)
-        with get_conn() as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    INSERT INTO kv_store (key,value) VALUES (%s,%s)
-                    ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value
-                """, (key, v))
-            conn.commit()
+        with conn.cursor() as c:
+            c.execute("""
+                INSERT INTO kv_store(key,value) VALUES(%s,%s)
+                ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value
+            """, (key, json.dumps(value, ensure_ascii=False)))
+        conn.commit(); conn.close()
     except Exception as e:
-        print(f"[DB] set({key}): {e}")
-        _file_set(key, value)  # fallback
+        print(f"[DB] set error: {e}"); conn.close()
 
-def _fp(k): return os.path.join(DATA_DIR, f"{k}.json")
-def _file_get(k, d):
+def init_db():
+    conn = get_db()
+    if not conn: return
     try:
-        p = _fp(k)
-        if os.path.exists(p):
-            with open(p,'r',encoding='utf-8') as f: return json.load(f)
-    except: pass
-    return d
-def _file_set(k, v):
-    try:
-        with open(_fp(k),'w',encoding='utf-8') as f:
-            json.dump(v, f, ensure_ascii=False, indent=2)
-    except Exception as e: print(f"[FILE] {k}: {e}")
+        with conn.cursor() as c:
+            c.execute("""CREATE TABLE IF NOT EXISTS kv_store(
+                key TEXT PRIMARY KEY, value TEXT)""")
+        conn.commit(); conn.close()
+        print("[DB] connected ✅")
+    except Exception as e:
+        print(f"[DB] init error: {e}")
 
-# ══ بيانات الناخبين ══════════════════════════════════════════════
-VOTERS_DB  = {}
-CANDIDATES = []
+CACHE = {}   # in-memory fallback
+
+# ── In-memory duplicate protection ───────────────────────────
+VOTED_CACHE   = set()
+DEVICES_CACHE = {}
+IP_CACHE      = {}
+
+def h(s): return hashlib.sha256(str(s).encode()).hexdigest()[:16]
 
 def load_data():
-    global VOTERS_DB, CANDIDATES
-    if not os.path.exists(EXCEL_FILE): return
-    df = pd.read_excel(EXCEL_FILE, sheet_name='سجل الناخبين', dtype=str)
-    df.columns = df.columns.str.strip()
-    for _, row in df.iterrows():
-        reg  = str(row.get('رقم التسجيل الانتخابي','')).strip().replace('.0','')
-        name = str(row.get('الاسم الكامل','')).strip()
-        ctr  = str(row.get('مركز الاقتراع','')).strip()
-        if reg and reg != 'nan':
-            VOTERS_DB[reg] = {'name':name,'center':ctr}
-    df2 = pd.read_excel(EXCEL_FILE, sheet_name='قوائم المرشحين')
-    df2.columns = df2.columns.str.strip()
-    tmp = {}
-    for _, row in df2.iterrows():
-        lid = int(row['رقم القائمة'])
-        if lid not in tmp:
-            tmp[lid] = {'id':lid,'name':str(row['اسم القائمة']).strip(),'candidates':[]}
-        tmp[lid]['candidates'].append({
-            'order':int(row['الترتيب']),
-            'name':str(row['اسم المرشح']).strip(),
-            'gender':str(row['الجنس']).strip()
-        })
-    for l in tmp.values(): l['candidates'].sort(key=lambda x:x['order'])
-    CANDIDATES = [tmp[k] for k in sorted(tmp.keys())]
-    print(f"[OK] Voters:{len(VOTERS_DB):,}  Lists:{len(CANDIDATES)}")
+    voted = db_get('voted', {})
+    for k in voted: VOTED_CACHE.add(k)
+    print(f"[Data] loaded {len(VOTED_CACHE)} voted")
 
-# ══ مساعدات ══════════════════════════════════════════════════════
-def h(s): return hashlib.sha256(str(s).encode()).hexdigest()[:20]
+# ── Load voters & candidates ──────────────────────────────────
+VOTERS_DB    = {}
+CANDIDATES   = {}
+
+def load_excel():
+    paths = [
+        'data/voters.xlsx',
+        os.path.join(os.path.dirname(__file__), 'data', 'voters.xlsx')
+    ]
+    for path in paths:
+        if not os.path.exists(path): continue
+        try:
+            import openpyxl
+            wb  = openpyxl.load_workbook(path, read_only=True, data_only=True)
+
+            # voters
+            ws = wb['\u0633\u062c\u0644 \u0627\u0644\u0646\u0627\u062e\u0628\u064a\u0646']
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                if row[2]:
+                    VOTERS_DB[str(row[2]).strip()] = str(row[3]).strip() if row[3] else ''
+
+            # candidates
+            ws2 = wb['\u0642\u0648\u0627\u0626\u0645 \u0627\u0644\u0645\u0631\u0634\u062d\u064a\u0646']
+            for row in ws2.iter_rows(min_row=2, values_only=True):
+                if not row[0]: continue
+                lid = str(row[0]).strip()
+                if lid not in CANDIDATES:
+                    CANDIDATES[lid] = {'name': str(row[1]).strip() if row[1] else '', 'members': []}
+                CANDIDATES[lid]['members'].append({
+                    'order': row[2], 'name': str(row[3]).strip() if row[3] else '',
+                    'gender': str(row[4]).strip() if row[4] else '',
+                    'status': str(row[5]).strip() if row[5] else ''
+                })
+            wb.close()
+            print(f"[Excel] {len(VOTERS_DB)} voters, {len(CANDIDATES)} lists")
+            return True
+        except Exception as e:
+            print(f"[Excel] error: {e}")
+    return False
+
 def find_voter(reg):
-    reg = str(reg).strip()
-    return (VOTERS_DB.get(reg)
-            or VOTERS_DB.get(reg.lstrip('0'))
-            or (VOTERS_DB.get(str(int(reg))) if reg.isdigit() else None))
-def get_ip():
-    xff = request.headers.get('X-Forwarded-For','')
-    return xff.split(',')[0].strip() if xff else (request.remote_addr or 'unknown')
-def is_open():
-    return db_get('settings',{}).get('open',True)
-def get_cfg():
-    c = db_get('settings',{})
-    return {
-        'max_device': c.get('max_votes_per_device',1),
-        'max_ip':     c.get('max_votes_per_ip',3),
-        'block_dev':  c.get('block_device',True),
-        'block_ip':   c.get('block_ip',True),
-    }
-
-def check_device(fp_h, ip_h, cfg):
-    # ── فحص من الذاكرة أولاً (أسرع وأموثوق) ──
-    if cfg['block_dev'] and fp_h:
-        cnt = DEVICES_CACHE.get(fp_h,{}).get('count',0)
-        if cnt >= cfg['max_device']:
-            return False, '⛔ هذا الجهاز شارك مسبقاً. لا يُسمح بأكثر من مشاركة واحدة لكل جهاز.'
-    if cfg['block_ip'] and ip_h:
-        cnt = IP_CACHE.get(ip_h,{}).get('count',0)
-        if cnt >= cfg['max_ip']:
-            return False, '⛔ تجاوزت هذه الشبكة الحد المسموح به.'
-    return True, ''
+    return VOTERS_DB.get(str(reg).strip())
 
 def record_device_vote(fp_h, ip_h, reg_h):
-    now = datetime.now().strftime('%H:%M:%S')
-    # تحديث الذاكرة أولاً
+    DEVICES_CACHE[fp_h] = reg_h
+    IP_CACHE[ip_h]      = IP_CACHE.get(ip_h, 0) + 1
+    devs = db_get('devices', {})
+    devs[fp_h] = reg_h
+    db_set('devices', devs)
+
+# ── Routes ────────────────────────────────────────────────────
+@app.route('/')
+def index():
+    return send_from_directory('static', 'index.html')
+
+@app.route('/api/voter', methods=['POST'])
+def api_voter():
+    data = request.get_json(silent=True) or {}
+    reg  = str(data.get('reg_num','')).strip()
+    if not reg:
+        return jsonify({'ok':False,'error':'أدخل رقم التسجيل الانتخابي'}), 400
+    name = find_voter(reg)
+    if name is None:
+        return jsonify({'ok':False,'error':'رقم التسجيل غير موجود في السجل الانتخابي'}), 404
+    reg_h = h(reg)
+    # Check already voted
+    voted = db_get('voted', {})
+    if reg_h in voted or reg_h in VOTED_CACHE:
+        return jsonify({'ok':False,'error':'لقد قمت بالتصويت مسبقاً، لا يمكن التصويت مرتين'}), 403
+    # Check device
+    fp  = str(data.get('fp','')).strip()
+    fp_h = h(fp) if fp else None
     if fp_h:
-        if fp_h not in DEVICES_CACHE:
-            DEVICES_CACHE[fp_h] = {'count':0,'first':now}
-        DEVICES_CACHE[fp_h]['count'] += 1
-        DEVICES_CACHE[fp_h]['last']   = now
-    if ip_h:
-        if ip_h not in IP_CACHE:
-            IP_CACHE[ip_h] = {'count':0,'first':now}
-        IP_CACHE[ip_h]['count'] += 1
-        IP_CACHE[ip_h]['last']   = now
-    # حفظ في DB
-    db_set('devices', {'fingerprints':DEVICES_CACHE,'ips':IP_CACHE})
+        devs = db_get('devices', {})
+        if fp_h in devs or fp_h in DEVICES_CACHE:
+            return jsonify({'ok':False,'error':'هذا الجهاز استخدم للتصويت مسبقاً'}), 403
+    return jsonify({'ok':True,'name':name})
 
-# ══ API ══════════════════════════════════════════════════════════
-@app.route('/api/voter/<reg>')
-def api_voter(reg):
-    if not is_open():
-        return jsonify({'ok':False,'error':'الاستطلاع مغلق حالياً'}),403
-    fp_h = h(request.args.get('fp',''))
-    ip_h = h(get_ip())
-    cfg  = get_cfg()
-    # ── فحص الجهاز ──
-    ok2, err = check_device(fp_h, ip_h, cfg)
-    if not ok2:
-        return jsonify({'ok':False,'error':err}),403
-    voter = find_voter(reg)
-    if not voter:
-        return jsonify({'ok':False,'error':'الرقم غير موجود في سجل المشاركين'}),404
-    # ── فحص التصويت المسبق من الذاكرة أولاً ──
-    reg_h = h(reg.strip())
-    if reg_h in VOTED_CACHE:
-        return jsonify({'ok':False,'error':'هذا الرقم شارك في الاستطلاع مسبقاً'}),403
-    return jsonify({'ok':True,'name':voter['name'],'center':voter['center']})
-
-@app.route('/api/candidates')
+@app.route('/api/candidates', methods=['GET'])
 def api_candidates():
-    return jsonify({'ok':True,'lists':CANDIDATES})
+    out = []
+    for lid, info in CANDIDATES.items():
+        out.append({'id':lid,'name':info['name'],'members':info['members']})
+    return jsonify({'ok':True,'lists':out})
 
 @app.route('/api/vote', methods=['POST'])
 def api_vote():
-    if not is_open():
-        return jsonify({'ok':False,'error':'الاستطلاع مغلق'}),403
-    data    = request.get_json(silent=True) or {}
-    reg     = str(data.get('reg_num','')).strip()
-    list_id = data.get('list_id')
-    chosen  = data.get('candidates',[])
-    fp      = data.get('fingerprint','')
-    if not reg or not list_id or not chosen:
-        return jsonify({'ok':False,'error':'بيانات ناقصة'}),400
-    if not 1<=len(chosen)<=5:
-        return jsonify({'ok':False,'error':'اختر من 1 إلى 5'}),400
-    voter = find_voter(reg)
-    if not voter:
-        return jsonify({'ok':False,'error':'رقم غير صالح'}),404
-    lst = next((l for l in CANDIDATES if l['id']==list_id),None)
-    if not lst:
-        return jsonify({'ok':False,'error':'قائمة غير موجودة'}),400
-    fp_h  = h(fp)
-    ip_h  = h(get_ip())
-    reg_h = h(reg)
-    cfg   = get_cfg()
+    data     = request.get_json(silent=True) or {}
+    reg      = str(data.get('reg_num','')).strip()
+    list_id  = str(data.get('list_id','')).strip()
+    chosen   = data.get('candidates', [])
+    fp       = str(data.get('fp','')).strip()
+    ip       = request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip()
 
-    with lock:
-        # ── التحقق من الذاكرة أولاً (الأسرع والأموثوق) ──
-        if reg_h in VOTED_CACHE:
-            return jsonify({'ok':False,'error':'تمت المشاركة بهذا الرقم مسبقاً'}),403
-        ok2, err = check_device(fp_h, ip_h, cfg)
-        if not ok2:
-            return jsonify({'ok':False,'error':err}),403
+    if not reg or not list_id:
+        return jsonify({'ok':False,'error':'بيانات ناقصة'}), 400
 
-        # ── تسجيل في الذاكرة فوراً (قبل DB حتى لا يفوت شيء) ──
-        VOTED_CACHE.add(reg_h)
+    reg_h = h(reg); fp_h = h(fp); ip_h = h(ip)
 
-        # ── حفظ الأصوات ──
-        votes = db_get('votes',{'lists':{},'candidates':{},'total':0})
-        votes['lists'][lst['name']]  = votes['lists'].get(lst['name'],0)+1
-        votes['total']               = votes.get('total',0)+1
+    with _DB_LOCK:
+        # Double-check: already voted?
+        voted = db_get('voted', {})
+        if reg_h in voted or reg_h in VOTED_CACHE:
+            return jsonify({'ok':False,'error':'لقد صوّتت مسبقاً'}), 403
+        # Double-check: device?
+        devs = db_get('devices', {})
+        if fp_h in devs or fp_h in DEVICES_CACHE:
+            return jsonify({'ok':False,'error':'هذا الجهاز استخدم للتصويت مسبقاً'}), 403
+
+        # Record vote
+        votes = db_get('votes', {'total':0,'lists':{},'candidates':{}})
+        votes['total'] = votes.get('total',0) + 1
+        votes['lists'][list_id] = votes['lists'].get(list_id,0) + 1
         for c in chosen:
-            votes['candidates'][c]   = votes['candidates'].get(c,0)+1
+            votes['candidates'][c] = votes['candidates'].get(c,0) + 1
         db_set('votes', votes)
 
-        # ── تسجيل الناخب (hash فقط) ──
-        voted = db_get('voted',{})
+        # Mark voter
         voted[reg_h] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        VOTED_CACHE.add(reg_h)
         db_set('voted', voted)
 
-        # ── تسجيل الجهاز ──
+        # Mark device
         record_device_vote(fp_h, ip_h, reg_h)
-        # ── تسجيل رقم الجوال (مرة واحدة فقط) ──
-        ph = ''.join(str(data.get('phone_hash','')).split())
-        if ph:
-            used_phones = db_get('used_phones', {})
-            used_phones[ph] = True
-            db_set('used_phones', used_phones)
 
     return jsonify({'ok':True,'msg':'تم تسجيل رأيك بنجاح'})
 
-ADMIN_PW = lambda: os.environ.get('ADMIN_PASSWORD', 'Tubas@0598652625')
+# ── Admin ─────────────────────────────────────────────────────
+ADMIN_PW = lambda: os.environ.get('ADMIN_PW','Tubas@0598652625')
 
-@app.route('/api/admin/results')
-def api_results():
-    if request.headers.get('X-Admin-Pass') != ADMIN_PW():
-        return jsonify({'ok':False,'error':'غير مصرح'}),401
-    votes = db_get('votes',{'lists':{},'candidates':{},'total':0})
-    tv    = sum(votes['lists'].values()) or 1
-    lists_r = sorted([{
-        'id':l['id'],'name':l['name'],
-        'votes':votes['lists'].get(l['name'],0),
-        'pct':round(votes['lists'].get(l['name'],0)/tv*100,1),
-        'candidates_count':len(l['candidates'])} for l in CANDIDATES],
-        key=lambda x:-x['votes'])
-    cands_r = sorted([{
-        'name':c['name'],'list':l['name'],'gender':c['gender'],
-        'votes':votes['candidates'].get(c['name'],0)}
-        for l in CANDIDATES for c in l['candidates']],key=lambda x:-x['votes'])
-    fp_s = sorted([{'fp':k[:8]+'...','votes':v['count'],'last':v.get('last','')}
-        for k,v in DEVICES_CACHE.items() if v['count']>1],key=lambda x:-x['votes'])
-    ip_s = sorted([{'ip':k[:8]+'...','votes':v['count'],'last':v.get('last','')}
-        for k,v in IP_CACHE.items()],key=lambda x:-x['votes'])
-    cfg  = get_cfg()
-    return jsonify({
-        'ok':True,
-        'total_voters':len(VOTERS_DB),
-        'total_voted':len(VOTED_CACHE),
-        'participation_pct':round(len(VOTED_CACHE)/max(len(VOTERS_DB),1)*100,1),
-        'election_open':is_open(),
-        'total_devices':len(DEVICES_CACHE),
-        'blocked_attempts':0,
-        'security_settings':cfg,
-        'suspicious_devices':fp_s[:10],
-        'suspicious_ips':ip_s[:10],
-        'recent_security_log':[],
-        'lists':lists_r,'candidates':cands_r
-    })
+@app.route('/api/admin/login', methods=['POST'])
+def api_admin_login():
+    data = request.get_json(silent=True) or {}
+    if data.get('password') == ADMIN_PW():
+        return jsonify({'ok':True})
+    return jsonify({'ok':False,'error':'كلمة المرور غير صحيحة'}), 401
+
+@app.route('/api/admin/results', methods=['POST'])
+def api_admin_results():
+    data = request.get_json(silent=True) or {}
+    if data.get('password') != ADMIN_PW():
+        return jsonify({'ok':False,'error':'غير مصرح'}), 401
+    votes   = db_get('votes',   {'total':0,'lists':{},'candidates':{}})
+    voted   = db_get('voted',   {})
+    devices = db_get('devices', {})
+    return jsonify({'ok':True,'votes':votes,
+                    'total_voters':len(voted),
+                    'unique_devices':len(devices)})
 
 @app.route('/api/admin/toggle', methods=['POST'])
-def api_toggle():
-    if request.headers.get('X-Admin-Pass') != ADMIN_PW():
-        return jsonify({'ok':False,'error':'غير مصرح'}),401
-    cfg = db_get('settings',{})
-    cfg['open'] = not cfg.get('open',True)
-    db_set('settings', cfg)
-    return jsonify({'ok':True,'open':cfg['open']})
-
-@app.route('/api/admin/security', methods=['POST'])
-def api_security():
-    if request.headers.get('X-Admin-Pass') != ADMIN_PW():
-        return jsonify({'ok':False,'error':'غير مصرح'}),401
+def api_admin_toggle():
     data = request.get_json(silent=True) or {}
-    cfg  = db_get('settings',{})
-    for k in ['max_votes_per_device','max_votes_per_ip']:
-        if k in data: cfg[k] = int(data[k])
-    for k in ['block_device','block_ip']:
-        if k in data: cfg[k] = bool(data[k])
-    db_set('settings', cfg)
-    return jsonify({'ok':True})
+    if data.get('password') != ADMIN_PW():
+        return jsonify({'ok':False}), 401
+    cur = db_get('open', True)
+    db_set('open', not cur)
+    return jsonify({'ok':True,'open': not cur})
 
-@app.route('/')
-def index():
-    return send_from_directory('static','index.html')
+@app.route('/api/status')
+def api_status():
+    return jsonify({'open': db_get('open', True)})
 
-
-@app.route('/api/lookup', methods=['POST'])
-def api_lookup():
-    """البحث عن رقم التسجيل من موقع لجنة الانتخابات"""
-    import re
-    from bs4 import BeautifulSoup as BS
-    data  = request.get_json(silent=True) or {}
-    palid = str(data.get('id','')).strip()
-    year  = str(data.get('year','')).strip()
-    if not palid or not year:
-        return jsonify({'ok':False,'error':'أدخل رقم الهوية وسنة الميلاد'}),400
-    try:
-        import urllib.request as ur, urllib.parse as up
-        CEC = 'https://www.elections.ps/tabid/596/language/ar-PS/Default.aspx'
-        req1 = ur.Request(CEC, headers={'User-Agent':'Mozilla/5.0'})
-        with ur.urlopen(req1, timeout=10) as res:
-            page = res.read().decode('utf-8','ignore')
-        def gv(name):
-            m = re.search(rf'name="{re.escape(name)}"[^>]*value="([^"]*)"', page)
-            return m.group(1) if m else ''
-        payload = up.urlencode({
-            '__VIEWSTATE': gv('__VIEWSTATE'),
-            '__VIEWSTATEGENERATOR': gv('__VIEWSTATEGENERATOR'),
-            '__EVENTVALIDATION': gv('__EVENTVALIDATION'),
-            'dnn$ctr4525$View$PalID': palid,
-            'dnn$ctr4525$View$YearOfBirth': year,
-            'dnn$ctr4525$View$btnSearch': 'بحث',
-            'g-recaptcha-response': '',
-        }).encode('utf-8')
-        req2 = ur.Request(CEC, data=payload, headers={
-            'User-Agent':'Mozilla/5.0','Content-Type':'application/x-www-form-urlencoded',
-            'Referer': CEC})
-        with ur.urlopen(req2, timeout=12) as res2:
-            page2 = res2.read().decode('utf-8','ignore')
-        m = re.search(r'lblRegNum[^>]*>([\d]+)<', page2)
-        if m:
-            reg = m.group(1)
-            # استخراج الاسم أيضاً
-            nm = re.search(r'lblName[^>]*>([^<]+)<', page2)
-            name = nm.group(1).strip() if nm else ''
-            return jsonify({'ok':True,'reg':reg,'name':name})
-        if 'لا يوجد' in page2 or 'غير مسجل' in page2:
-            return jsonify({'ok':False,'error':'لم يتم العثور على بيانات لهذا الرقم'})
-        return jsonify({'ok':False,'error':'تعذر استرجاع البيانات، حاول مرة أخرى'})
-    except Exception as e:
-        return jsonify({'ok':False,'error':f'خطأ في الاتصال: {str(e)[:60]}'}),500
-
-
-import random, time as _time
-
-def send_otp_sms(phone, code):
-    """Send OTP via Twilio REST API - no library needed"""
-    import urllib.request as ur, urllib.parse as up
-    sid   = ''.join(os.environ.get('TWILIO_SID','').split())
-    token = ''.join(os.environ.get('TWILIO_TOKEN','').split())
-    from_ = ''.join(os.environ.get('TWILIO_FROM','').split())
-    print(f"[OTP] SID={sid[:8] if sid else 'MISSING'} FROM={from_ or 'MISSING'} TO={phone}")
-    if not sid or not token or not from_:
-        print("[OTP] ERROR: Twilio credentials missing from environment")
-        return False, "Twilio credentials not configured"
-    try:
-        url  = f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"
-        body = f"رمز التحقق الخاص بك هو ({code}) مع تحيات راديو بروفا"
-        data = up.urlencode({'From': from_, 'To': phone, 'Body': body}).encode()
-        cred = base64.b64encode(f"{sid}:{token}".encode()).decode()
-        req  = ur.Request(url, data=data,
-                          headers={"Authorization": f"Basic {cred}",
-                                   "Content-Type": "application/x-www-form-urlencoded"})
-        with ur.urlopen(req, timeout=15) as res:
-            result = json.loads(res.read())
-            print(f"[OTP] SMS queued: {result.get('sid')} status={result.get('status')}")
-            return True, "sent"
-    except ur.HTTPError as e:
-        err = json.loads(e.read().decode())
-        msg = f"Twilio error {e.code}: {err.get('message','unknown')} (code={err.get('code')})"
-        print(f"[OTP] {msg}")
-        return False, msg
-    except Exception as e:
-        print(f"[OTP] Exception: {e}")
-        return False, str(e)
-
-
-@app.route('/api/send-otp', methods=['POST'])
-def api_send_otp():
-    import urllib.request as ur, urllib.parse as up
-    data  = request.get_json(silent=True) or {}
-    reg   = str(data.get('reg_num','')).strip()
-    phone = str(data.get('phone','')).strip()
-    if not reg or not phone:
-        return jsonify({'ok':False,'error':'Missing data'}),400
-    # Normalize phone number
-    phone = phone.replace(' ','').replace('-','').replace('(','').replace(')','')
-    if phone.startswith('00'):
-        phone = '+' + phone[2:]
-    elif phone.startswith('0') and not phone.startswith('00'):
-        phone = '+970' + phone[1:]
-    elif not phone.startswith('+'):
-        phone = '+970' + phone
-    if len(phone) < 10:
-        return jsonify({'ok':False,'error':'Invalid phone number format'}),400
-    voter = find_voter(reg)
-    if not voter:
-        return jsonify({'ok':False,'error':'Invalid electoral registration number'}),400
-    # توليد OTP 6 أرقام
-    code = str(random.randint(100000, 999999))
-    otp_key = 'otp_' + h(reg)
-    otp_data = {
-        'code':    code,
-        'phone':   phone,
-        'reg':     h(reg),
-        'expires': _time.time() + 300  # 5 دقائق
-    }
-    db_set(otp_key, otp_data)
-    # إرسال SMS
-    sent, err_msg = send_otp_sms(phone, code)
-    if sent:
-        masked = phone[:4] + '***' + phone[-3:]
-        return jsonify({'ok':True,'msg':f'Verification code sent to {masked}'})
-    else:
-        return jsonify({'ok':False,'error':f'SMS failed: {err_msg}'}),500
-
-@app.route('/api/verify-otp', methods=['POST'])
-def api_verify_otp():
-    data  = request.get_json(silent=True) or {}
-    reg   = str(data.get('reg_num','')).strip()
-    code  = str(data.get('code','')).strip()
-    if not reg or not code:
-        return jsonify({'ok':False,'error':'بيانات ناقصة'}),400
-    otp_key  = 'otp_' + h(reg)
-    otp_data = db_get(otp_key, {})
-    if not otp_data:
-        return jsonify({'ok':False,'error':'لم يتم إرسال رمز بعد، اضغط إرسال أولاً'}),400
-    if _time.time() > otp_data.get('expires', 0):
-        return jsonify({'ok':False,'error':'انتهت صلاحية الرمز، اضغط إرسال مجدداً'}),400
-    if otp_data.get('code') != code:
-        return jsonify({'ok':False,'error':'الرمز غير صحيح، حاول مرة أخرى'}),400
-    # حذف OTP بعد التحقق
-    phone_val = otp_data.get('phone','')
-    db_set(otp_key, {})
-    return jsonify({'ok':True,'msg':'تم التحقق بنجاح','phone_hash': h(phone_val)})
-
-@app.route('/api/debug-otp')
-def api_debug_otp():
-    sid   = os.environ.get('TWILIO_SID','')
-    token = os.environ.get('TWILIO_TOKEN','')
-    from_ = os.environ.get('TWILIO_FROM','')
-    db_url= os.environ.get('DATABASE_URL','')
+@app.route('/api/debug')
+def api_debug():
     return jsonify({
-        'twilio_sid':   sid[:8]+'...' if sid else 'MISSING',
-        'twilio_token': '****' if token else 'MISSING',
-        'twilio_from':  from_ or 'MISSING',
-        'database_url': ('set('+db_url[:20]+'...)') if db_url else 'MISSING',
-        'voters_count': len(VOTERS_DB),
+        'voters': len(VOTERS_DB),
+        'lists':  len(CANDIDATES),
+        'voted':  len(db_get('voted',{})),
+        'devices':len(db_get('devices',{})),
+        'db_connected': get_db() is not None,
     })
 
-
+# ── Start ─────────────────────────────────────────────────────
+load_excel()
 load_data()
 init_db()
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT',5050))
-    mode = "PostgreSQL ☁️" if DATABASE_URL else "Memory+JSON 📁"
-    print(f'Voters:{len(VOTERS_DB):,} | Cache:{len(VOTED_CACHE)} | DB:{mode}')
+    port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
