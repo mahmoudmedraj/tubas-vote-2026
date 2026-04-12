@@ -416,20 +416,25 @@ def send_otp_sms(phone, code):
 
 @app.route('/api/send-otp', methods=['POST'])
 def api_send_otp():
+    import urllib.request as ur, urllib.parse as up
     data  = request.get_json(silent=True) or {}
     reg   = str(data.get('reg_num','')).strip()
     phone = str(data.get('phone','')).strip()
     if not reg or not phone:
-        return jsonify({'ok':False,'error':'بيانات ناقصة'}),400
-    # تحقق رقم الجوال
-    phone = phone.replace(' ','').replace('-','')
-    if not phone.startswith('+'):
-        phone = '+970' + phone.lstrip('0')
+        return jsonify({'ok':False,'error':'Missing data'}),400
+    # Normalize phone number
+    phone = phone.replace(' ','').replace('-','').replace('(','').replace(')','')
+    if phone.startswith('00'):
+        phone = '+' + phone[2:]
+    elif phone.startswith('0') and not phone.startswith('00'):
+        phone = '+970' + phone[1:]
+    elif not phone.startswith('+'):
+        phone = '+970' + phone
     if len(phone) < 10:
-        return jsonify({'ok':False,'error':'رقم الجوال غير صحيح'}),400
+        return jsonify({'ok':False,'error':'Invalid phone number format'}),400
     voter = find_voter(reg)
     if not voter:
-        return jsonify({'ok':False,'error':'رقم انتخابي غير صالح'}),400
+        return jsonify({'ok':False,'error':'Invalid electoral registration number'}),400
     # توليد OTP 6 أرقام
     code = str(random.randint(100000, 999999))
     otp_key = 'otp_' + h(reg)
@@ -445,7 +450,7 @@ def api_send_otp():
     if sent:
         return jsonify({'ok':True,'msg':f'تم إرسال رمز التحقق إلى {phone[:5]}***{phone[-3:]}'})
     else:
-        return jsonify({'ok':False,'error':'فشل إرسال الرسالة، تحقق من رقم الجوال'}),500
+        return jsonify({'ok':False,'error':'SMS sending failed. Please check your phone number and try again.'}),500
 
 @app.route('/api/verify-otp', methods=['POST'])
 def api_verify_otp():
