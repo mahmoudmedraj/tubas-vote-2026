@@ -5,7 +5,6 @@ import time as _time
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 
-# ── DB helpers ────────────────────────────────────────────────
 _DB_LOCK = threading.Lock()
 
 def get_db():
@@ -25,10 +24,11 @@ def db_get(key, default=None):
         with conn.cursor() as c:
             c.execute("SELECT value FROM kv_store WHERE key=%s", (key,))
             row = c.fetchone()
-            conn.close()
-            return json.loads(row[0]) if row else default
-    except:
         conn.close()
+        return json.loads(row[0]) if row else (CACHE.get(key, default))
+    except:
+        try: conn.close()
+        except: pass
         return CACHE.get(key, default)
 
 def db_set(key, value):
@@ -37,78 +37,93 @@ def db_set(key, value):
     if not conn: return
     try:
         with conn.cursor() as c:
-            c.execute("""
-                INSERT INTO kv_store(key,value) VALUES(%s,%s)
-                ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value
-            """, (key, json.dumps(value, ensure_ascii=False)))
-        conn.commit(); conn.close()
+            c.execute("""INSERT INTO kv_store(key,value) VALUES(%s,%s)
+                ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value""",
+                (key, json.dumps(value, ensure_ascii=False)))
+        conn.commit()
     except Exception as e:
-        print(f"[DB] set error: {e}"); conn.close()
+        print(f"[DB] set error: {e}")
+    finally:
+        try: conn.close()
+        except: pass
 
 def init_db():
     conn = get_db()
-    if not conn: return
+    if not conn:
+        print("[DB] no connection - using memory only")
+        return
     try:
         with conn.cursor() as c:
             c.execute("""CREATE TABLE IF NOT EXISTS kv_store(
                 key TEXT PRIMARY KEY, value TEXT)""")
-        conn.commit(); conn.close()
-        print("[DB] connected ✅")
+        conn.commit()
+        print("[DB] connected OK")
     except Exception as e:
         print(f"[DB] init error: {e}")
+    finally:
+        try: conn.close()
+        except: pass
 
-CACHE = {}   # in-memory fallback
-
-# ── In-memory duplicate protection ───────────────────────────
+CACHE = {}
 VOTED_CACHE   = set()
 DEVICES_CACHE = {}
-IP_CACHE      = {}
 
 def h(s): return hashlib.sha256(str(s).encode()).hexdigest()[:16]
 
-def load_data():
+def load_history():
     voted = db_get('voted', {})
-    for k in voted: VOTED_CACHE.add(k)
-    print(f"[Data] loaded {len(VOTED_CACHE)} voted")
+    for k in voted:
+        VOTED_CACHE.add(k)
+    devs = db_get('devices', {})
+    for k in devs:
+        DEVICES_CACHE[k] = devs[k]
+    print(f"[History] voted={len(VOTED_CACHE)} devices={len(DEVICES_CACHE)}")
 
-# ── Load voters & candidates ──────────────────────────────────
-VOTERS_DB    = {}
-CANDIDATES   = {}
+VOTERS_DB  = {}
+CANDIDATES = {}
 
 def load_excel():
+    import os.path
     paths = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'voters.xlsx'),
         'data/voters.xlsx',
-        os.path.join(os.path.dirname(__file__), 'data', 'voters.xlsx')
     ]
     for path in paths:
-        if not os.path.exists(path): continue
+        if not os.path.exists(path):
+            continue
         try:
             import openpyxl
-            wb  = openpyxl.load_workbook(path, read_only=True, data_only=True)
+            wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+            print(f"[Excel] sheets: {wb.sheetnames}")
 
-            # voters
-            ws = wb['\u0633\u062c\u0644 \u0627\u0644\u0646\u0627\u062e\u0628\u064a\u0646']
+            # Voters sheet - first sheet
+            ws = wb.worksheets[0]
             for row in ws.iter_rows(min_row=2, values_only=True):
-                if row[2]:
+                if row and len(row) >= 4 and row[2]:
                     VOTERS_DB[str(row[2]).strip()] = str(row[3]).strip() if row[3] else ''
 
-            # candidates
-            ws2 = wb['\u0642\u0648\u0627\u0626\u0645 \u0627\u0644\u0645\u0631\u0634\u062d\u064a\u0646']
+            # Candidates sheet - second sheet
+            ws2 = wb.worksheets[1]
             for row in ws2.iter_rows(min_row=2, values_only=True):
-                if not row[0]: continue
+                if not row or not row[0]: continue
                 lid = str(row[0]).strip()
                 if lid not in CANDIDATES:
-                    CANDIDATES[lid] = {'name': str(row[1]).strip() if row[1] else '', 'members': []}
+                    CANDIDATES[lid] = {
+                        'name': str(row[1]).strip() if row[1] else '',
+                        'members': []
+                    }
                 CANDIDATES[lid]['members'].append({
-                    'order': row[2], 'name': str(row[3]).strip() if row[3] else '',
+                    'order': row[2],
+                    'name':  str(row[3]).strip() if row[3] else '',
                     'gender': str(row[4]).strip() if row[4] else '',
                     'status': str(row[5]).strip() if row[5] else ''
                 })
             wb.close()
-            print(f"[Excel] {len(VOTERS_DB)} voters, {len(CANDIDATES)} lists")
+            print(f"[Excel] loaded {len(VOTERS_DB)} voters, {len(CANDIDATES)} lists")
             return True
         except Exception as e:
-            print(f"[Excel] error: {e}")
+            print(f"[Excel] error loading {path}: {e}")
+    print("[Excel] WARNING: no excel file found")
     return False
 
 def find_voter(reg):
@@ -116,12 +131,10 @@ def find_voter(reg):
 
 def record_device_vote(fp_h, ip_h, reg_h):
     DEVICES_CACHE[fp_h] = reg_h
-    IP_CACHE[ip_h]      = IP_CACHE.get(ip_h, 0) + 1
     devs = db_get('devices', {})
     devs[fp_h] = reg_h
     db_set('devices', devs)
 
-# ── Routes ────────────────────────────────────────────────────
 @app.route('/')
 def index():
     return send_from_directory('static', 'index.html')
@@ -132,16 +145,16 @@ def api_voter():
     reg  = str(data.get('reg_num','')).strip()
     if not reg:
         return jsonify({'ok':False,'error':'أدخل رقم التسجيل الانتخابي'}), 400
+    if not VOTERS_DB:
+        return jsonify({'ok':False,'error':'جاري تحميل البيانات، حاول مجدداً'}), 503
     name = find_voter(reg)
     if name is None:
         return jsonify({'ok':False,'error':'رقم التسجيل غير موجود في السجل الانتخابي'}), 404
     reg_h = h(reg)
-    # Check already voted
     voted = db_get('voted', {})
     if reg_h in voted or reg_h in VOTED_CACHE:
         return jsonify({'ok':False,'error':'لقد قمت بالتصويت مسبقاً، لا يمكن التصويت مرتين'}), 403
-    # Check device
-    fp  = str(data.get('fp','')).strip()
+    fp   = str(data.get('fp','')).strip()
     fp_h = h(fp) if fp else None
     if fp_h:
         devs = db_get('devices', {})
@@ -158,47 +171,34 @@ def api_candidates():
 
 @app.route('/api/vote', methods=['POST'])
 def api_vote():
-    data     = request.get_json(silent=True) or {}
-    reg      = str(data.get('reg_num','')).strip()
-    list_id  = str(data.get('list_id','')).strip()
-    chosen   = data.get('candidates', [])
-    fp       = str(data.get('fp','')).strip()
-    ip       = request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip()
-
+    data    = request.get_json(silent=True) or {}
+    reg     = str(data.get('reg_num','')).strip()
+    list_id = str(data.get('list_id','')).strip()
+    chosen  = data.get('candidates', [])
+    fp      = str(data.get('fp','')).strip()
+    ip      = request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip()
     if not reg or not list_id:
         return jsonify({'ok':False,'error':'بيانات ناقصة'}), 400
-
     reg_h = h(reg); fp_h = h(fp); ip_h = h(ip)
-
     with _DB_LOCK:
-        # Double-check: already voted?
         voted = db_get('voted', {})
         if reg_h in voted or reg_h in VOTED_CACHE:
             return jsonify({'ok':False,'error':'لقد صوّتت مسبقاً'}), 403
-        # Double-check: device?
         devs = db_get('devices', {})
         if fp_h in devs or fp_h in DEVICES_CACHE:
             return jsonify({'ok':False,'error':'هذا الجهاز استخدم للتصويت مسبقاً'}), 403
-
-        # Record vote
         votes = db_get('votes', {'total':0,'lists':{},'candidates':{}})
         votes['total'] = votes.get('total',0) + 1
         votes['lists'][list_id] = votes['lists'].get(list_id,0) + 1
         for c in chosen:
-            votes['candidates'][c] = votes['candidates'].get(c,0) + 1
+            votes['candidates'][str(c)] = votes['candidates'].get(str(c),0) + 1
         db_set('votes', votes)
-
-        # Mark voter
         voted[reg_h] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         VOTED_CACHE.add(reg_h)
         db_set('voted', voted)
-
-        # Mark device
         record_device_vote(fp_h, ip_h, reg_h)
-
     return jsonify({'ok':True,'msg':'تم تسجيل رأيك بنجاح'})
 
-# ── Admin ─────────────────────────────────────────────────────
 ADMIN_PW = lambda: os.environ.get('ADMIN_PW','Tubas@0598652625')
 
 @app.route('/api/admin/login', methods=['POST'])
@@ -236,17 +236,17 @@ def api_status():
 @app.route('/api/debug')
 def api_debug():
     return jsonify({
-        'voters': len(VOTERS_DB),
-        'lists':  len(CANDIDATES),
-        'voted':  len(db_get('voted',{})),
-        'devices':len(db_get('devices',{})),
-        'db_connected': get_db() is not None,
+        'voters':      len(VOTERS_DB),
+        'lists':       len(CANDIDATES),
+        'voted':       len(db_get('voted',{})),
+        'devices':     len(db_get('devices',{})),
+        'db':          get_db() is not None,
+        'in_memory_voted': len(VOTED_CACHE),
     })
 
-# ── Start ─────────────────────────────────────────────────────
 load_excel()
-load_data()
 init_db()
+load_history()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
