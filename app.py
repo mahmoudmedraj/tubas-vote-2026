@@ -388,9 +388,9 @@ import random, time as _time
 def send_otp_sms(phone, code):
     """Send OTP via Twilio REST API - no library needed"""
     import urllib.request as ur, urllib.parse as up
-    sid   = os.environ.get('TWILIO_SID',   '').strip()
-    token = os.environ.get('TWILIO_TOKEN', '').strip()
-    from_ = os.environ.get('TWILIO_FROM',  '').strip()
+    sid   = ''.join(os.environ.get('TWILIO_SID','').split())
+    token = ''.join(os.environ.get('TWILIO_TOKEN','').split())
+    from_ = ''.join(os.environ.get('TWILIO_FROM','').split())
     print(f"[OTP] SID={sid[:8] if sid else 'MISSING'} FROM={from_ or 'MISSING'} TO={phone}")
     if not sid or not token or not from_:
         print("[OTP] ERROR: Twilio credentials missing from environment")
