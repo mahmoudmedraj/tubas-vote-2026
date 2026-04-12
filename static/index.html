@@ -334,46 +334,13 @@ footer{background:var(--Gd);color:rgba(255,255,255,.55);text-align:center;paddin
       <div class="al al-w"><span class="al-ico">⚠️</span><span>إذا لم يكن هذا اسمك، لا تتابع وتواصل مع لجنة الانتخابات.</span></div>
       <div style="display:flex;gap:11px;flex-wrap:wrap">
         <button class="btn btn-o" style="flex:1" onclick="backToLogin()">← ليس اسمي</button>
-        <button class="btn btn-p btn-lg" style="flex:2" onclick="goToOtp()">✔ نعم، هذا اسمي — متابعة</button>
+        <button class="btn btn-p btn-lg" style="flex:2" onclick="goToLists()">✔ نعم، هذا اسمي — متابعة</button>
       </div>
     </div>
   </div>
 </div>
 
 <!-- ═══ SCREEN 3: LISTS ═══ -->
-<!-- OTP SCREEN -->
-<div class="screen" id="sc-otp">
-  <div class="card">
-    <div class="ch"><div class="ch-ico">📱</div><div><h2>التحقق برمز SMS</h2><p>أدخل رقم جوالك لاستلام رمز التحقق</p></div></div>
-    <div class="cb">
-      <div class="al al-i"><span class="al-ico">ℹ️</span><span>سيصلك رمز مكون من 6 أرقام على جوالك خلال ثوانٍ</span></div>
-      <div id="otpErr" class="al al-d" style="display:none"><span class="al-ico">⛔</span><span id="otpErrMsg"></span></div>
-      <div id="otpSuccess" class="al al-s" style="display:none"><span class="al-ico">✅</span><span id="otpSuccessMsg"></span></div>
-      <div id="phoneSection">
-        <div class="fg">
-          <label class="fl">رقم الجوال <span>*</span></label>
-          <input type="tel" id="phoneIn" class="fc" placeholder="05XXXXXXXX" style="letter-spacing:1px" onkeydown="if(event.key==='Enter')doSendOtp()"/>
-          <div class="fh">📱 مثال: 0599123456</div>
-        </div>
-        <button class="btn btn-p btn-lg btn-bl" id="btnSendOtp" onclick="doSendOtp()">📤 إرسال رمز التحقق</button>
-      </div>
-      <div id="codeSection" style="display:none;margin-top:18px">
-        <div class="fg">
-          <label class="fl">رمز التحقق <span>*</span></label>
-          <input type="number" id="otpIn" class="fc" placeholder="× × × × × ×" maxlength="6"
-            style="font-size:28px;letter-spacing:6px;text-align:center" onkeydown="if(event.key==='Enter')doVerifyOtp()"/>
-          <div class="fh" id="otpTimer">⏱️ الرمز صالح لمدة 5 دقائق</div>
-        </div>
-        <button class="btn btn-p btn-lg btn-bl" id="btnVerifyOtp" onclick="doVerifyOtp()">✔ تأكيد الرمز والمتابعة</button>
-        <div style="text-align:center;margin-top:12px">
-          <button onclick="resetOtp()" style="background:none;border:none;color:var(--G);font-family:Tajawal,sans-serif;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline">🔄 إعادة إرسال الرمز</button>
-        </div>
-      </div>
-      <div style="margin-top:16px"><button class="btn btn-o" onclick="backToVerify()">← العودة</button></div>
-    </div>
-  </div>
-</div>
-
 <div class="screen" id="sc-lists">
   <div class="card">
     <div class="ch"><div class="ch-ico">📋</div><div><h2>اختيار القائمة</h2><p>اختر قائمة واحدة من القوائم الست</p></div></div>
@@ -609,92 +576,7 @@ function normalizeNum(s){
 
 
 /* ══ OTP ══ */
-async function goToOtp(){
-  // بعد التحقق من الاسم → شاشة OTP
-  document.getElementById('phoneIn').value='';
-  document.getElementById('otpIn').value='';
-  document.getElementById('phoneSection').style.display='block';
-  document.getElementById('codeSection').style.display='none';
-  document.getElementById('otpErr').style.display='none';
-  document.getElementById('otpSuccess').style.display='none';
-  showSc('sc-otp'); setStep(3);
-}
-function backToVerify(){
-  showSc('sc-verify'); setStep(2);
-}
-async function doSendOtp(){
-  const phone = document.getElementById('phoneIn').value.trim();
-  if(!phone){
-    document.getElementById('otpErr').style.display='flex';
-    document.getElementById('otpErrMsg').textContent='الرجاء إدخال رقم الجوال';
-    return;
-  }
-  const btn = document.getElementById('btnSendOtp');
-  btn.disabled=true; btn.textContent='⏳ جاري الإرسال...';
-  document.getElementById('otpErr').style.display='none';
-  try{
-    const r = await fetch('/api/send-otp',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({reg_num: S.reg, phone})
-    });
-    const d = await r.json();
-    if(d.ok){
-      document.getElementById('otpSuccess').style.display='flex';
-      document.getElementById('otpSuccessMsg').textContent = d.msg;
-      document.getElementById('codeSection').style.display='block';
-      document.getElementById('otpIn').focus();
-      startOtpTimer(300);
-    } else {
-      document.getElementById('otpErr').style.display='flex';
-      document.getElementById('otpErrMsg').textContent = d.error;
-    }
-  }catch(e){
-    document.getElementById('otpErr').style.display='flex';
-    document.getElementById('otpErrMsg').textContent='تعذر الاتصال بالخادم';
-  }
-  btn.disabled=false; btn.textContent='📤 إرسال رمز التحقق';
-}
-async function doVerifyOtp(){
-  const code = document.getElementById('otpIn').value.trim();
-  if(!code || code.length < 6){
-    document.getElementById('otpErr').style.display='flex';
-    document.getElementById('otpErrMsg').textContent='أدخل الرمز المكون من 6 أرقام';
-    return;
-  }
-  const btn = document.getElementById('btnVerifyOtp');
-  btn.disabled=true; btn.textContent='⏳ جاري التحقق...';
-  document.getElementById('otpErr').style.display='none';
-  try{
-    const r = await fetch('/api/verify-otp',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({reg_num: S.reg, code})
-    });
-    const d = await r.json();
-    if(d.ok){
-      goToLists();
-    } else {
-      document.getElementById('otpErr').style.display='flex';
-      document.getElementById('otpErrMsg').textContent = d.error;
-    }
-  }catch(e){
-    document.getElementById('otpErr').style.display='flex';
-    document.getElementById('otpErrMsg').textContent='تعذر الاتصال بالخادم';
-  }
-  btn.disabled=false; btn.textContent='✔ تأكيد الرمز والمتابعة';
-}
-let otpTimerInterval = null;
-function startOtpTimer(secs){
-  clearInterval(otpTimerInterval);
-  const el = document.getElementById('otpTimer');
-  otpTimerInterval = setInterval(()=>{
-    secs--;
-    const m = Math.floor(secs/60), s = secs%60;
-    if(el) el.textContent = `⏱️ الرمز صالح لمدة: ${m}:${s.toString().padStart(2,'0')}`;
-    if(secs<=0){ clearInterval(otpTimerInterval); if(el) el.textContent='⚠️ انتهت صلاحية الرمز، أعد الإرسال';}
-  }, 1000);
-}
-
-async function doLogin(){
+async async function doLogin(){
   hideLoginErr();
   const raw  = $('regIn').value;
   const reg  = normalizeNum(raw);
