@@ -386,15 +386,16 @@ def api_lookup():
 import random, time as _time
 
 def send_otp_sms(phone, code):
-    """إرسال رمز OTP عبر Twilio REST API مباشرة"""
+    """Send OTP via Twilio REST API - no library needed"""
     import urllib.request as ur, urllib.parse as up
+    sid   = os.environ.get('TWILIO_SID',   '').strip()
+    token = os.environ.get('TWILIO_TOKEN', '').strip()
+    from_ = os.environ.get('TWILIO_FROM',  '').strip()
+    print(f"[OTP] SID={sid[:8] if sid else 'MISSING'} FROM={from_ or 'MISSING'} TO={phone}")
+    if not sid or not token or not from_:
+        print("[OTP] ERROR: Twilio credentials missing from environment")
+        return False, "Twilio credentials not configured"
     try:
-        sid   = os.environ.get('TWILIO_SID',   '')
-        token = os.environ.get('TWILIO_TOKEN', '')
-        from_ = os.environ.get('TWILIO_FROM',  '')
-        if not all([sid, token, from_]):
-            print(f"[OTP] Missing: SID={bool(sid)} TOKEN={bool(token)} FROM={bool(from_)}")
-            return False
         url  = f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"
         body = f"رمز التحقق الخاص بك هو ({code}) مع تحيات راديو بروفا"
         data = up.urlencode({'From': from_, 'To': phone, 'Body': body}).encode()
@@ -404,15 +405,17 @@ def send_otp_sms(phone, code):
                                    "Content-Type": "application/x-www-form-urlencoded"})
         with ur.urlopen(req, timeout=15) as res:
             result = json.loads(res.read())
-            print(f"[OTP] Sent: {result.get('sid')} status={result.get('status')}")
-            return True
+            print(f"[OTP] SMS queued: {result.get('sid')} status={result.get('status')}")
+            return True, "sent"
     except ur.HTTPError as e:
-        err = json.loads(e.read())
-        print(f"[OTP] Twilio error {e.code}: {err.get('message')} code={err.get('code')}")
-        return False
+        err = json.loads(e.read().decode())
+        msg = f"Twilio error {e.code}: {err.get('message','unknown')} (code={err.get('code')})"
+        print(f"[OTP] {msg}")
+        return False, msg
     except Exception as e:
         print(f"[OTP] Exception: {e}")
-        return False
+        return False, str(e)
+
 
 @app.route('/api/send-otp', methods=['POST'])
 def api_send_otp():
@@ -446,11 +449,12 @@ def api_send_otp():
     }
     db_set(otp_key, otp_data)
     # إرسال SMS
-    sent = send_otp_sms(phone, code)
+    sent, err_msg = send_otp_sms(phone, code)
     if sent:
-        return jsonify({'ok':True,'msg':f'تم إرسال رمز التحقق إلى {phone[:5]}***{phone[-3:]}'})
+        masked = phone[:4] + '***' + phone[-3:]
+        return jsonify({'ok':True,'msg':f'Verification code sent to {masked}'})
     else:
-        return jsonify({'ok':False,'error':'SMS sending failed. Please check your phone number and try again.'}),500
+        return jsonify({'ok':False,'error':f'SMS failed: {err_msg}'}),500
 
 @app.route('/api/verify-otp', methods=['POST'])
 def api_verify_otp():
@@ -470,6 +474,21 @@ def api_verify_otp():
     # حذف OTP بعد التحقق
     db_set(otp_key, {})
     return jsonify({'ok':True,'msg':'تم التحقق بنجاح'})
+
+@app.route('/api/debug-otp')
+def api_debug_otp():
+    sid   = os.environ.get('TWILIO_SID','')
+    token = os.environ.get('TWILIO_TOKEN','')
+    from_ = os.environ.get('TWILIO_FROM','')
+    db_url= os.environ.get('DATABASE_URL','')
+    return jsonify({
+        'twilio_sid':   sid[:8]+'...' if sid else 'MISSING',
+        'twilio_token': '****' if token else 'MISSING',
+        'twilio_from':  from_ or 'MISSING',
+        'database_url': ('set('+db_url[:20]+'...)') if db_url else 'MISSING',
+        'voters_count': len(VOTERS_DB),
+    })
+
 
 load_data()
 init_db()
