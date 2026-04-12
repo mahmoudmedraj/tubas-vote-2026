@@ -341,6 +341,39 @@ footer{background:var(--Gd);color:rgba(255,255,255,.55);text-align:center;paddin
 </div>
 
 <!-- ═══ SCREEN 3: LISTS ═══ -->
+<!-- OTP SCREEN -->
+<div class="screen" id="sc-otp">
+  <div class="card">
+    <div class="ch"><div class="ch-ico">📱</div><div><h2>التحقق برمز SMS</h2><p>أدخل رقم جوالك لاستلام رمز التحقق</p></div></div>
+    <div class="cb">
+      <div class="al al-i"><span class="al-ico">ℹ️</span><span>سيصلك رمز مكون من 6 أرقام على جوالك خلال ثوانٍ</span></div>
+      <div id="otpErr" class="al al-d" style="display:none"><span class="al-ico">⛔</span><span id="otpErrMsg"></span></div>
+      <div id="otpSuccess" class="al al-s" style="display:none"><span class="al-ico">✅</span><span id="otpSuccessMsg"></span></div>
+      <div id="phoneSection">
+        <div class="fg">
+          <label class="fl">رقم الجوال <span>*</span></label>
+          <input type="tel" id="phoneIn" class="fc" placeholder="05XXXXXXXX" style="letter-spacing:1px" onkeydown="if(event.key==='Enter')doSendOtp()"/>
+          <div class="fh">📱 مثال: 0599123456</div>
+        </div>
+        <button class="btn btn-p btn-lg btn-bl" id="btnSendOtp" onclick="doSendOtp()">📤 إرسال رمز التحقق</button>
+      </div>
+      <div id="codeSection" style="display:none;margin-top:18px">
+        <div class="fg">
+          <label class="fl">رمز التحقق <span>*</span></label>
+          <input type="number" id="otpIn" class="fc" placeholder="× × × × × ×" maxlength="6"
+            style="font-size:28px;letter-spacing:6px;text-align:center" onkeydown="if(event.key==='Enter')doVerifyOtp()"/>
+          <div class="fh" id="otpTimer">⏱️ الرمز صالح لمدة 5 دقائق</div>
+        </div>
+        <button class="btn btn-p btn-lg btn-bl" id="btnVerifyOtp" onclick="doVerifyOtp()">✔ تأكيد الرمز والمتابعة</button>
+        <div style="text-align:center;margin-top:12px">
+          <button onclick="resetOtp()" style="background:none;border:none;color:var(--G);font-family:Tajawal,sans-serif;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline">🔄 إعادة إرسال الرمز</button>
+        </div>
+      </div>
+      <div style="margin-top:16px"><button class="btn btn-o" onclick="backToVerify()">← العودة</button></div>
+    </div>
+  </div>
+</div>
+
 <div class="screen" id="sc-lists">
   <div class="card">
     <div class="ch"><div class="ch-ico">📋</div><div><h2>اختيار القائمة</h2><p>اختر قائمة واحدة من القوائم الست</p></div></div>
