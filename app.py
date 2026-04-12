@@ -245,7 +245,7 @@ def api_debug():
     })
 
 
-@app.route('/api/admin/inject-history', methods=['POST'])
+@app.route('/api/inject849', methods=['GET','POST'])
 def api_inject_history():
     """Inject historical vote data - one time use"""
     import hashlib as _hs
