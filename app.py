@@ -268,6 +268,12 @@ def api_vote():
 
         # ── تسجيل الجهاز ──
         record_device_vote(fp_h, ip_h, reg_h)
+        # ── تسجيل رقم الجوال (مرة واحدة فقط) ──
+        ph = ''.join(str(data.get('phone_hash','')).split())
+        if ph:
+            used_phones = db_get('used_phones', {})
+            used_phones[ph] = True
+            db_set('used_phones', used_phones)
 
     return jsonify({'ok':True,'msg':'تم تسجيل رأيك بنجاح'})
 
